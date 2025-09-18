@@ -8,7 +8,6 @@ function preloadImages(imagePaths) {
     const totalImages = Object.keys(imagePaths).length;
 
     return new Promise((resolve, reject) => {
-        // 画像がない場合でも解決する
         if (totalImages === 0) {
             resolve({});
             return;
@@ -46,7 +45,7 @@ window.addEventListener('load', async () => {
     };
 
     try {
-        // 画像を読み込み、待機
+        // async/awaitを使って画像を読み込み、完了を待つ
         const charImages = await preloadImages(characterImagePaths);
         const enemyImages = await preloadImages(enemyImagePaths);
 
@@ -54,10 +53,8 @@ window.addEventListener('load', async () => {
         CharacterTypes.MAGE.image = charImages.mage;
         CharacterTypes.ARCHER.image = charImages.archer;
 
-        // Gameクラスに敵の画像を渡す
         const game = new Game(canvas, ctx, enemyImages.basicEnemy);
 
-        // キャラクター選択UIを生成
         const charSelection = document.getElementById('character-selection');
         Object.values(CharacterTypes).forEach(charType => {
             const button = document.createElement('div');
@@ -65,14 +62,12 @@ window.addEventListener('load', async () => {
             button.textContent = `${charType.name} (${charType.cost}pt)`;
             button.addEventListener('click', () => {
                 game.selectedCharacter = charType;
-                // ボタンの選択状態を更新
                 document.querySelectorAll('.char-button').forEach(btn => btn.classList.remove('selected'));
                 button.classList.add('selected');
             });
             charSelection.appendChild(button);
         });
 
-        // ゲームループ
         function gameLoop() {
             game.update();
             game.draw();
