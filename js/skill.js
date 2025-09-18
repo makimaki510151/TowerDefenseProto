@@ -6,7 +6,6 @@ export default class Skill {
         this.power = power;
         this.game = game;
         this.cooldown = cooldown;
-        this.currentCooldown = 0;
         this.range = range;
         this.type = type;
         this.targetType = targetType || 'closest';
@@ -16,7 +15,7 @@ export default class Skill {
     }
 
     canUse(caster, enemies) {
-        if (this.currentCooldown > 0) {
+        if (caster.currentSkillCooldown > 0) {
             return false;
         }
 
@@ -122,7 +121,7 @@ export default class Skill {
         });
 
         if (hasHit) {
-            this.currentCooldown = this.cooldown * 60;
+            caster.currentSkillCooldown = this.cooldown * 60;
         }
     }
 

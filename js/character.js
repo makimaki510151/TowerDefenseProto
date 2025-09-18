@@ -3,7 +3,7 @@ import Skill from './skill.js';
 import DamageText from './damageText.js';
 
 export default class Character {
-    constructor(name, hp, attack, magicAttack, physicalDefense, magicDefense, position, image, skillsData, game) {
+    constructor(name, hp, attack, magicAttack, physicalDefense, magicDefense, attackRange, attackSpeed, position, image, skillsData, game) {
         this.name = name;
         this.hp = hp;
         this.maxHp = hp;
@@ -11,6 +11,9 @@ export default class Character {
         this.magicAttack = magicAttack;
         this.physicalDefense = physicalDefense;
         this.magicDefense = magicDefense;
+        this.attackRange = attackRange;
+        this.attackSpeed = attackSpeed;
+        this.currentAttackCooldown = 0;
         this.position = position;
         this.image = image;
         this.isAlive = true;
@@ -18,6 +21,7 @@ export default class Character {
 
         this.shieldHp = 0;
         this.shieldDuration = 0;
+        this.currentSkillCooldown = 0;
 
         this.skills = skillsData.map(skillInfo => new Skill(skillInfo.name, skillInfo.power, this.game, skillInfo.cooldown, skillInfo.range, skillInfo.type, skillInfo.targetType, skillInfo.targetCount, skillInfo.condition));
     }
@@ -26,10 +30,36 @@ export default class Character {
         if (!this.isAlive) {
             return;
         }
-        this.skills.forEach(skill => {
-            skill.update();
-            skill.use(this, enemies, this.game.characters); // game.charactersを渡すように修正
-        });
+
+        // 通常攻撃のクールダウンを更新
+        this.currentAttackCooldown -= 1;
+        // スキルの共通クールダウンを更新
+        this.currentSkillCooldown -= 1;
+
+        // 通常攻撃の実行
+        if (this.currentAttackCooldown <= 0) {
+            const isPhysicalAttack = this.attack > this.magicAttack;
+            const baseDamage = isPhysicalAttack ? this.attack : this.magicAttack;
+
+            let target = null;
+            let closestDistance = Infinity;
+
+            enemies.forEach(enemy => {
+                const distance = Math.hypot(this.position.x - enemy.position.x, this.position.y - enemy.position.y);
+                if (distance <= this.attackRange && distance < closestDistance) {
+                    closestDistance = distance;
+                    target = enemy;
+                }
+            });
+
+            if (target) {
+                const targetDefense = isPhysicalAttack ? target.physicalDefense : target.magicDefense;
+                const damage = Math.max(0, baseDamage - targetDefense);
+                target.takeDamage(damage);
+                this.game.addMessage(`${this.name} は ${target.name} に ${damage.toFixed(1)} の通常攻撃ダメージを与えました。`);
+                this.currentAttackCooldown = this.attackSpeed;
+            }
+        }
 
         // シールドの持続時間を更新
         if (this.shieldDuration > 0) {
@@ -82,25 +112,25 @@ export default class Character {
 
 export const CharacterTypes = {
     MAGE: {
-        name: 'キャラ1 (魔法使い)', hp: 80, attack: 5, magicAttack: 25, physicalDefense: 5, magicDefense: 20, imagePath: 'assets/mage.png',
+        name: 'キャラ1 (魔法使い)', hp: 80, attack: 5, magicAttack: 25, physicalDefense: 5, magicDefense: 20, attackRange: 150, attackSpeed: 60, imagePath: 'assets/mage.png',
         skills: [
             { name: 'Fireball', power: 1.5, cooldown: 2, range: 200, type: 'magic', targetType: 'closest', targetCount: 1 }
         ]
     },
     ARCHER: {
-        name: 'キャラ2 (弓使い)', hp: 60, attack: 15, magicAttack: 0, physicalDefense: 15, magicDefense: 5, imagePath: 'assets/archer.png',
+        name: 'キャラ2 (弓使い)', hp: 60, attack: 15, magicAttack: 0, physicalDefense: 15, magicDefense: 5, attackRange: 250, attackSpeed: 45, imagePath: 'assets/archer.png',
         skills: [
             { name: 'Arrow Shot', power: 1.2, cooldown: 1, range: 300, type: 'physical', targetType: 'closest', targetCount: 1 }
         ]
     },
     SNIPER: {
-        name: 'キャラ3 (スナイパー)', hp: 50, attack: 20, magicAttack: 0, physicalDefense: 10, magicDefense: 5, imagePath: 'assets/sniper.png',
+        name: 'キャラ3 (スナイパー)', hp: 50, attack: 20, magicAttack: 0, physicalDefense: 10, magicDefense: 5, attackRange: 350, attackSpeed: 90, imagePath: 'assets/sniper.png',
         skills: [
             { name: 'Long Shot', power: 2.0, cooldown: 3, range: 400, type: 'physical', targetType: 'furthest', targetCount: 1 }
         ]
     },
     REI: {
-        name: '零唯', hp: 80, attack: 0, magicAttack: 25, physicalDefense: 5, magicDefense: 20, imagePath: 'assets/rei.png',
+        name: '零唯', hp: 80, attack: 0, magicAttack: 25, physicalDefense: 5, magicDefense: 20, attackRange: 120, attackSpeed: 60, imagePath: 'assets/rei.png',
         skills: [
             { name: 'Magic Shockwave', power: 1.5, cooldown: 3, range: 150, type: 'magic', targetType: 'multiple', targetCount: 99, condition: 'group' },
             { name: 'Mana Field', power: 0.2, cooldown: 0.5, range: 250, type: 'magic', targetType: 'rectangle', targetCount: 99, condition: 'line' },

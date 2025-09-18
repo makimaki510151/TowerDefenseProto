@@ -88,10 +88,12 @@ export default class Game {
             this.selectedCharacter.magicAttack,
             this.selectedCharacter.physicalDefense,
             this.selectedCharacter.magicDefense,
+            this.selectedCharacter.attackRange, // 追加
+            this.selectedCharacter.attackSpeed, // 追加
             { x, y },
             this.selectedCharacter.image,
             this.selectedCharacter.skills,
-            this // gameインスタンスを渡す
+            this
         );
         this.characters.push(newChar);
         this.addMessage(`${newChar.name} を配置しました。残り ${this.selectedParty.length - this.characters.length} 体`);
