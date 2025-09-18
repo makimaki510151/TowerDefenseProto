@@ -11,7 +11,7 @@ export default class Enemy {
     }
 
     update() {
-        this.position.x += this.speed / 60;
+        this.position.x += this.speed;
         if (this.hp <= 0) {
             this.isAlive = false;
         }
