@@ -2,7 +2,6 @@ import Character from './character.js';
 import Enemy from './enemy.js';
 
 export default class Game {
-    // 敵の画像を引数として追加
     constructor(canvas, ctx, enemyImage) {
         this.canvas = canvas;
         this.ctx = ctx;
@@ -14,12 +13,35 @@ export default class Game {
         this.spawnEnemyTimer = 0;
         this.spawnEnemyInterval = 100;
         this.selectedCharacter = null;
-        this.enemyImage = enemyImage; // 敵画像をプロパティに保存
+        this.enemyImage = enemyImage;
 
         this.setupEventListeners();
     }
 
-    // ... (他のメソッドは変更なし)
+    // createFieldメソッドは、必ずこのGameクラス定義内に記述してください。
+    createField(cols, rows) {
+        const field = [];
+        for (let y = 0; y < rows; y++) {
+            field[y] = [];
+            for (let x = 0; x < cols; x++) {
+                field[y][x] = { x, y, occupied: false };
+            }
+        }
+        return field;
+    }
+
+    setupEventListeners() {
+        this.canvas.addEventListener('click', (event) => {
+            const rect = this.canvas.getBoundingClientRect();
+            const mouseX = event.clientX - rect.left;
+            const mouseY = event.clientY - rect.top;
+
+            const gridX = Math.floor(mouseX / this.gridSize);
+            const gridY = Math.floor(mouseY / this.gridSize);
+
+            this.placeCharacter(gridX, gridY);
+        });
+    }
 
     placeCharacter(x, y) {
         if (!this.selectedCharacter) {
@@ -46,7 +68,7 @@ export default class Game {
             this.selectedCharacter.attack,
             { x, y },
             this.selectedCharacter.cost,
-            this.selectedCharacter.image // ここで画像を渡す
+            this.selectedCharacter.image
         );
         this.characters.push(newChar);
         this.field[y][x].occupied = true;
@@ -56,21 +78,27 @@ export default class Game {
     }
 
     update() {
-        // 敵の生成
         this.spawnEnemyTimer++;
         if (this.spawnEnemyTimer >= this.spawnEnemyInterval) {
-            // 敵の生成時に画像を渡す
             this.enemies.push(new Enemy(100, 5, 1, { x: 0, y: Math.floor(Math.random() * this.field[0].length) }, 10, this.enemyImage));
             this.spawnEnemyTimer = 0;
         }
 
-        // ... (他の更新ロジック)
+        this.characters.forEach(char => char.update(this.enemies));
+        this.enemies.forEach(enemy => enemy.update());
+
+        const initialEnemyCount = this.enemies.length;
+        this.enemies = this.enemies.filter(enemy => enemy.isAlive);
+        const defeatedEnemyCount = initialEnemyCount - this.enemies.length;
+        if (defeatedEnemyCount > 0) {
+            this.points += 10 * defeatedEnemyCount;
+            document.getElementById('points-display').textContent = this.points;
+        }
     }
 
     draw() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-        // マス目の描画
         for (let y = 0; y < this.field.length; y++) {
             for (let x = 0; x < this.field[y].length; x++) {
                 this.ctx.strokeStyle = '#ccc';
@@ -78,7 +106,6 @@ export default class Game {
             }
         }
 
-        // キャラクターの描画
         this.characters.forEach(char => {
             if (char.image) {
                 this.ctx.drawImage(char.image, char.position.x * this.gridSize, char.position.y * this.gridSize, this.gridSize, this.gridSize);
@@ -88,7 +115,6 @@ export default class Game {
             }
         });
 
-        // 敵の描画
         this.enemies.forEach(enemy => {
             if (enemy.image) {
                 this.ctx.drawImage(enemy.image, enemy.position.x * this.gridSize, enemy.position.y * this.gridSize, this.gridSize, this.gridSize);

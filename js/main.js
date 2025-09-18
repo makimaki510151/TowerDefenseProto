@@ -35,7 +35,6 @@ window.addEventListener('load', async () => {
     canvas.width = 800;
     canvas.height = 600;
 
-    // 画像のパスを定義
     const characterImagePaths = {
         mage: 'assets/mage.png',
         archer: 'assets/archer.png'
@@ -45,11 +44,9 @@ window.addEventListener('load', async () => {
     };
 
     try {
-        // async/awaitを使って画像を読み込み、完了を待つ
         const charImages = await preloadImages(characterImagePaths);
         const enemyImages = await preloadImages(enemyImagePaths);
 
-        // キャラクタータイプに画像データを設定
         CharacterTypes.MAGE.image = charImages.mage;
         CharacterTypes.ARCHER.image = charImages.archer;
 
