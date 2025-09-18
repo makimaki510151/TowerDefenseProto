@@ -24,6 +24,8 @@ export default class Game {
         this.damageTexts = [];
         this.isGameOver = false;
 
+        this.fieldEffects = [];
+
         this.currentPhase = 'passiveSelection';
         this.currentWaveIndex = 0;
         this.currentWaveConfigIndex = 0;
@@ -88,11 +90,12 @@ export default class Game {
             this.selectedCharacter.magicAttack,
             this.selectedCharacter.physicalDefense,
             this.selectedCharacter.magicDefense,
-            this.selectedCharacter.attackRange, // 追加
-            this.selectedCharacter.attackSpeed, // 追加
+            this.selectedCharacter.attackRange,
+            this.selectedCharacter.attackSpeed,
             { x, y },
             this.selectedCharacter.image,
-            this.selectedCharacter.skills,
+            // 修正箇所：this.selectedCharacter.skillsDataを渡すように変更
+            this.selectedCharacter.skillsData,
             this
         );
         this.characters.push(newChar);
@@ -172,12 +175,11 @@ export default class Game {
         if (currentEnemyTypeConfig && this.enemiesToSpawnInCurrentConfig < currentEnemyTypeConfig.count) {
             this.spawnEnemyTimer++;
             if (this.spawnEnemyTimer >= this.spawnEnemyInterval) {
-                this.spawnEnemyTimer = 0;
                 this.spawnEnemy();
             }
         }
 
-        this.characters.forEach(char => char.update(this.enemies)); // 修正不要
+        this.characters.forEach(char => char.update(this.enemies));
         this.enemies.forEach(enemy => enemy.update(this.characters, this.wall, this));
 
         this.enemies = this.enemies.filter(enemy => enemy.isAlive);

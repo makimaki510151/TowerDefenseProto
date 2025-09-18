@@ -18,7 +18,11 @@ export default class Enemy {
         this.physicalDefense = physicalDefense; // 物理防御力
         this.magicDefense = magicDefense; // 魔法防御力
         this.attackType = attackType; // 'physical' or 'magic'
+
+        this.originalSpeed = speed; // 元の速度を保存
     }
+    
+    // ★slowメソッドは不要になったため削除
 
     update(characters, wall, game) {
         if (!this.isAlive) {
@@ -94,7 +98,6 @@ export default class Enemy {
             this.position.x,
             this.position.y - 20
         ));
-        // 敵が倒されたときのポイント加算ロジックを削除
     }
 
     draw(ctx) {
