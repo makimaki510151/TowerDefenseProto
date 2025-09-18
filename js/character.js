@@ -1,22 +1,25 @@
 // character.js
 import Skill from './skill.js';
+import DamageText from './damageText.js';
 
 export default class Character {
-    // コンストラクタに game インスタンスを受け取るように変更
     constructor(name, hp, attack, magicAttack, physicalDefense, magicDefense, position, image, skillsData, game) {
         this.name = name;
         this.hp = hp;
         this.maxHp = hp;
-        this.attack = attack; // 物理攻撃力
-        this.magicAttack = magicAttack; // 魔法攻撃力
-        this.physicalDefense = physicalDefense; // 物理防御力
-        this.magicDefense = magicDefense; // 魔法防御力
+        this.attack = attack;
+        this.magicAttack = magicAttack;
+        this.physicalDefense = physicalDefense;
+        this.magicDefense = magicDefense;
         this.position = position;
         this.image = image;
         this.isAlive = true;
+        this.game = game; // gameインスタンスを保持
 
-        // スキルデータを Skill クラスのインスタンスに変換
-        this.skills = skillsData.map(skillInfo => new Skill(skillInfo.name, skillInfo.power, game, skillInfo.cooldown, skillInfo.range, skillInfo.type, skillInfo.targetType, skillInfo.targetCount));
+        this.shieldHp = 0;
+        this.shieldDuration = 0;
+
+        this.skills = skillsData.map(skillInfo => new Skill(skillInfo.name, skillInfo.power, this.game, skillInfo.cooldown, skillInfo.range, skillInfo.type, skillInfo.targetType, skillInfo.targetCount, skillInfo.condition));
     }
 
     update(enemies) {
@@ -25,12 +28,34 @@ export default class Character {
         }
         this.skills.forEach(skill => {
             skill.update();
-            skill.use(this, enemies);
+            skill.use(this, enemies, this.game.characters); // game.charactersを渡すように修正
         });
+
+        // シールドの持続時間を更新
+        if (this.shieldDuration > 0) {
+            this.shieldDuration--;
+            if (this.shieldDuration === 0) {
+                this.shieldHp = 0;
+                this.game.addMessage(`${this.name} のシールドが切れました。`);
+            }
+        }
     }
 
     takeDamage(damage) {
-        this.hp -= damage;
+        if (this.shieldHp > 0) {
+            const damageToShield = Math.min(damage, this.shieldHp);
+            this.shieldHp -= damageToShield;
+            const remainingDamage = damage - damageToShield;
+            this.game.damageTexts.push(new DamageText(damageToShield, this.position.x, this.position.y - 20, 'shield'));
+            if (remainingDamage > 0) {
+                this.hp -= remainingDamage;
+                this.game.damageTexts.push(new DamageText(remainingDamage, this.position.x, this.position.y - 20));
+            }
+        } else {
+            this.hp -= damage;
+            this.game.damageTexts.push(new DamageText(damage, this.position.x, this.position.y - 20));
+        }
+
         if (this.hp <= 0) {
             this.isAlive = false;
             console.log(`${this.name} は倒されました。`);
@@ -42,6 +67,16 @@ export default class Character {
         ctx.font = '12px Arial';
         ctx.textAlign = 'center';
         ctx.fillText(`${this.name} (${this.hp})`, this.position.x, this.position.y - 30);
+        if (this.shieldHp > 0) {
+            const shieldBarWidth = 30;
+            const shieldBarHeight = 5;
+            const shieldBarX = this.position.x - shieldBarWidth / 2;
+            const shieldBarY = this.position.y - 40;
+            ctx.fillStyle = 'cyan';
+            ctx.fillRect(shieldBarX, shieldBarY, shieldBarWidth * (this.shieldHp / 100), shieldBarHeight);
+            ctx.strokeStyle = 'blue';
+            ctx.strokeRect(shieldBarX, shieldBarY, shieldBarWidth, shieldBarHeight);
+        }
     }
 }
 
@@ -49,22 +84,27 @@ export const CharacterTypes = {
     MAGE: {
         name: 'キャラ1 (魔法使い)', hp: 80, attack: 5, magicAttack: 25, physicalDefense: 5, magicDefense: 20, imagePath: 'assets/mage.png',
         skills: [
-            // ターゲットタイプとターゲット数を追加
             { name: 'Fireball', power: 1.5, cooldown: 2, range: 200, type: 'magic', targetType: 'closest', targetCount: 1 }
         ]
     },
     ARCHER: {
         name: 'キャラ2 (弓使い)', hp: 60, attack: 15, magicAttack: 0, physicalDefense: 15, magicDefense: 5, imagePath: 'assets/archer.png',
         skills: [
-            // ターゲットタイプとターゲット数を追加
             { name: 'Arrow Shot', power: 1.2, cooldown: 1, range: 300, type: 'physical', targetType: 'closest', targetCount: 1 }
         ]
     },
     SNIPER: {
         name: 'キャラ3 (スナイパー)', hp: 50, attack: 20, magicAttack: 0, physicalDefense: 10, magicDefense: 5, imagePath: 'assets/sniper.png',
         skills: [
-            // 遠い敵を狙うスキル
             { name: 'Long Shot', power: 2.0, cooldown: 3, range: 400, type: 'physical', targetType: 'furthest', targetCount: 1 }
+        ]
+    },
+    REI: {
+        name: '零唯', hp: 80, attack: 0, magicAttack: 25, physicalDefense: 5, magicDefense: 20, imagePath: 'assets/rei.png',
+        skills: [
+            { name: 'Magic Shockwave', power: 1.5, cooldown: 3, range: 150, type: 'magic', targetType: 'multiple', targetCount: 99, condition: 'group' },
+            { name: 'Mana Field', power: 0.2, cooldown: 0.5, range: 250, type: 'magic', targetType: 'rectangle', targetCount: 99, condition: 'line' },
+            { name: 'Protective Shield', power: 100, cooldown: 5, range: 0, type: 'support', targetType: 'ally', targetCount: 99, condition: 'default' }
         ]
     }
 };
@@ -97,7 +137,6 @@ export const PassiveTypes = {
             characters.forEach(char => {
                 char.skills.forEach(skill => {
                     skill.cooldown *= 0.8;
-                    // すでにクールタイム中の場合は再計算
                     if (skill.currentCooldown > 0) {
                         skill.currentCooldown = skill.cooldown * 60;
                     }

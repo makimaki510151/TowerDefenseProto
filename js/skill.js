@@ -1,66 +1,123 @@
 // skill.js
+
 export default class Skill {
-    constructor(name, power, game, cooldown, range, type, targetType, targetCount) {
+    constructor(name, power, game, cooldown, range, type, targetType, targetCount, condition) {
         this.name = name;
         this.power = power;
         this.game = game;
-        this.cooldown = cooldown; // クールタイムの秒数
-        this.currentCooldown = 0; // 現在のクールタイム
+        this.cooldown = cooldown;
+        this.currentCooldown = 0;
         this.range = range;
-        this.type = type; // 'physical' or 'magic'
-        this.targetType = targetType || 'closest'; // デフォルトは一番近い敵
-        this.targetCount = targetCount || 1; // デフォルトは1体
+        this.type = type;
+        this.targetType = targetType || 'closest';
+        this.targetCount = targetCount || 1;
+        this.condition = condition || 'default';
+        this.shieldDuration = 180;
     }
 
-    // スキルを発動できるかチェックするメソッド
-    canUse() {
-        return this.currentCooldown <= 0;
+    canUse(caster, enemies) {
+        if (this.currentCooldown > 0) {
+            return false;
+        }
+
+        const enemiesInRange = enemies.filter(target => {
+            const distance = Math.sqrt(Math.pow(caster.position.x - target.position.x, 2) + Math.pow(caster.position.y - target.position.y, 2));
+            return distance <= this.range;
+        });
+
+        if (this.condition === 'group') {
+            return enemiesInRange.length >= 3;
+        } else if (this.condition === 'line') {
+            const rectEnemies = enemies.filter(enemy => {
+                const enemyCenterX = enemy.position.x + 20;
+                const enemyCenterY = enemy.position.y + 20;
+
+                const relX = enemyCenterX - caster.position.x;
+                const relY = enemyCenterY - caster.position.y;
+                return relX < 0 && relX > -this.range && Math.abs(relY) < 40;
+            });
+            return rectEnemies.length > 0;
+        } else if (this.condition === 'default') {
+            return true;
+        }
+        return false;
     }
 
-    use(caster, enemies) {
-        if (!this.canUse()) {
+    use(caster, enemies, characters) {
+        if (!this.canUse(caster, enemies)) {
             return;
         }
 
-        // 範囲内の敵をフィルタリング
-        const enemiesInRange = enemies.filter(target => {
-            const distance = Math.sqrt(Math.pow(caster.position.x - target.position.x, 2) + Math.pow(caster.position.y - target.position.y, 2));
-            return distance < this.range;
-        });
+        let targetsToAttack = [];
 
-        if (enemiesInRange.length === 0) {
-            return; // 範囲内に敵がいない場合は何もしない
+        if (this.targetType === 'multiple') {
+            targetsToAttack = enemies.filter(target => {
+                const distance = Math.sqrt(Math.pow(caster.position.x - target.position.x, 2) + Math.pow(caster.position.y - target.position.y, 2));
+                return distance < this.range;
+            });
+        } else if (this.targetType === 'rectangle') {
+            targetsToAttack = enemies.filter(enemy => {
+                const enemyCenterX = enemy.position.x + 20;
+                const enemyCenterY = enemy.position.y + 20;
+
+                const relX = enemyCenterX - caster.position.x;
+                const relY = enemyCenterY - caster.position.y;
+                return relX < 0 && relX > -this.range && Math.abs(relY) < 40;
+            });
+        } else if (this.targetType === 'ally') {
+            targetsToAttack = characters;
+        } else {
+            const enemiesInRange = enemies.filter(target => {
+                const distance = Math.sqrt(Math.pow(caster.position.x - target.position.x, 2) + Math.pow(caster.position.y - target.position.y, 2));
+                return distance < this.range;
+            });
+
+            if (enemiesInRange.length === 0) {
+                return;
+            }
+
+            if (this.targetType === 'closest') {
+                enemiesInRange.sort((a, b) => {
+                    const distA = Math.sqrt(Math.pow(caster.position.x - a.position.x, 2) + Math.pow(caster.position.y - a.position.y, 2));
+                    const distB = Math.sqrt(Math.pow(caster.position.x - b.position.x, 2) + Math.pow(caster.position.y - b.position.y, 2));
+                    return distA - distB;
+                });
+            } else if (this.targetType === 'furthest') {
+                enemiesInRange.sort((a, b) => {
+                    const distA = Math.sqrt(Math.pow(caster.position.x - a.position.x, 2) + Math.pow(caster.position.y - a.position.y, 2));
+                    const distB = Math.sqrt(Math.pow(caster.position.x - b.position.x, 2) + Math.pow(caster.position.y - b.position.y, 2));
+                    return distB - distA;
+                });
+            }
+            targetsToAttack = enemiesInRange.slice(0, this.targetCount);
         }
 
-        // ターゲットタイプに基づいてソート
-        if (this.targetType === 'closest') {
-            enemiesInRange.sort((a, b) => {
-                const distA = Math.sqrt(Math.pow(caster.position.x - a.position.x, 2) + Math.pow(caster.position.y - a.position.y, 2));
-                const distB = Math.sqrt(Math.pow(caster.position.x - b.position.x, 2) + Math.pow(caster.position.y - b.position.y, 2));
-                return distA - distB;
-            });
-        } else if (this.targetType === 'furthest') {
-            enemiesInRange.sort((a, b) => {
-                const distA = Math.sqrt(Math.pow(caster.position.x - a.position.x, 2) + Math.pow(caster.position.y - a.position.y, 2));
-                const distB = Math.sqrt(Math.pow(caster.position.x - b.position.x, 2) + Math.pow(caster.position.y - b.position.y, 2));
-                return distB - distA;
-            });
+        if (targetsToAttack.length === 0) {
+            return;
         }
-
-        // ターゲット数に基づいて攻撃対象を決定
-        const targetsToAttack = enemiesInRange.slice(0, this.targetCount);
 
         let hasHit = false;
         targetsToAttack.forEach(target => {
-            let damage = 0;
             if (this.type === 'physical') {
-                damage = Math.max(1, (caster.attack * this.power) - target.physicalDefense);
+                let damage = Math.max(1, (caster.attack * this.power) - target.physicalDefense);
+                this.game.addMessage(`${caster.name} が ${this.name} で ${target.name} に ${damage.toFixed(1)} ダメージを与えた！`);
+                target.takeDamage(damage);
             } else if (this.type === 'magic') {
-                damage = Math.max(1, (caster.magicAttack * this.power) - target.magicDefense);
+                let damage = Math.max(1, (caster.magicAttack * this.power) - target.magicDefense);
+                this.game.addMessage(`${caster.name} が ${this.name} で ${target.name} に ${damage.toFixed(1)} ダメージを与えた！`);
+                target.takeDamage(damage);
+
+                if (this.name === 'Magic Shockwave') {
+                    const knockbackDistance = 50;
+                    const angle = Math.atan2(target.position.y - caster.position.y, target.position.x - caster.position.x);
+                    target.position.x += Math.cos(angle) * knockbackDistance;
+                    target.position.y += Math.sin(angle) * knockbackDistance;
+                }
+            } else if (this.type === 'support') {
+                target.shieldHp = this.power;
+                target.shieldDuration = this.shieldDuration;
+                this.game.addMessage(`${caster.name} が ${target.name} にシールドを付与した！`);
             }
-            
-            this.game.addMessage(`${caster.name} が ${this.type === 'physical' ? '物理' : '魔法'}スキルで ${target.name} に ${damage.toFixed(1)} ダメージを与えた！`);
-            target.takeDamage(damage);
             hasHit = true;
         });
 
@@ -69,7 +126,6 @@ export default class Skill {
         }
     }
 
-    // クールタイムを更新するメソッド
     update() {
         if (this.currentCooldown > 0) {
             this.currentCooldown--;

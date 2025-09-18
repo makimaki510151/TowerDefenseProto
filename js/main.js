@@ -38,7 +38,8 @@ window.addEventListener('load', async () => {
     const characterImagePaths = {
         mage: 'assets/mage.png',
         archer: 'assets/archer.png',
-        sniper: 'assets/sniper.png'
+        sniper: 'assets/sniper.png',
+        rei: 'assets/rei.png'
     };
     const enemyImagePaths = {
         basicEnemy: 'assets/enemy.png',
@@ -55,6 +56,7 @@ window.addEventListener('load', async () => {
         CharacterTypes.MAGE.image = charImages.mage;
         CharacterTypes.ARCHER.image = charImages.archer;
         CharacterTypes.SNIPER.image = charImages.sniper;
+        CharacterTypes.REI.image = charImages.rei;
 
         const game = new Game(canvas, ctx, enemyImages);
 

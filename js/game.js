@@ -1,5 +1,4 @@
 // game.js
-// game.js
 import Character from './character.js';
 import Enemy from './enemy.js';
 import Skill from './skill.js';
@@ -30,11 +29,8 @@ export default class Game {
         this.currentWaveConfigIndex = 0;
 
         this.waveData = [
-            // ウェーブ1: 基本的な敵のみ
             [{ type: 'BASIC', count: 5, interval: 100 }],
-            // ウェーブ2: 基本的な敵と高速な敵がランダムに出現
             [{ type: 'random', types: ['BASIC', 'FAST'], count: 10, interval: 60 }],
-            // ウェーブ3: 基本的な敵、次に高速な敵、最後にタンク敵
             [{ type: 'BASIC', count: 5, interval: 50 }, { type: 'FAST', count: 5, interval: 40 }, { type: 'TANK', count: 3, interval: 80 }]
         ];
 
@@ -95,7 +91,7 @@ export default class Game {
             { x, y },
             this.selectedCharacter.image,
             this.selectedCharacter.skills,
-            this
+            this // gameインスタンスを渡す
         );
         this.characters.push(newChar);
         this.addMessage(`${newChar.name} を配置しました。残り ${this.selectedParty.length - this.characters.length} 体`);
@@ -171,8 +167,6 @@ export default class Game {
         const currentWaveConfig = this.waveData[this.currentWaveIndex];
         const currentEnemyTypeConfig = currentWaveConfig[this.currentWaveConfigIndex];
 
-        // 現在の敵タイプの生成が完了しているか、またはすべての敵が生成済みでないかを確認
-        // このロジックは正常に動作しているため変更不要
         if (currentEnemyTypeConfig && this.enemiesToSpawnInCurrentConfig < currentEnemyTypeConfig.count) {
             this.spawnEnemyTimer++;
             if (this.spawnEnemyTimer >= this.spawnEnemyInterval) {
@@ -181,7 +175,7 @@ export default class Game {
             }
         }
 
-        this.characters.forEach(char => char.update(this.enemies));
+        this.characters.forEach(char => char.update(this.enemies)); // 修正不要
         this.enemies.forEach(enemy => enemy.update(this.characters, this.wall, this));
 
         this.enemies = this.enemies.filter(enemy => enemy.isAlive);
@@ -189,12 +183,8 @@ export default class Game {
         this.damageTexts.forEach(text => text.update());
         this.damageTexts = this.damageTexts.filter(text => text.life > 0);
 
-        // --- ★ここから修正 ---
-        // ウェーブが終了したかチェック
-        // 生成された敵の総数を正しく計算
         const totalEnemiesInWave = currentWaveConfig.reduce((sum, config) => sum + config.count, 0);
 
-        // 現在のウェーブのすべての敵が画面上からいなくなったか、かつ、すべて生成されたか
         if (this.enemies.length === 0 && this.currentWaveConfigIndex >= currentWaveConfig.length) {
             this.isWaveInProgress = false;
             this.addMessage(`ウェーブ ${this.currentWaveIndex + 1} クリア！`);
@@ -207,7 +197,6 @@ export default class Game {
                 this.isGameOver = true;
             }
         }
-        // --- ★修正ここまで ---
 
         if (this.wall.hp <= 0) {
             this.isGameOver = true;
@@ -242,7 +231,6 @@ export default class Game {
             return;
         }
 
-        // 新しい敵を生成
         const newEnemy = new Enemy(
             enemyData.name,
             enemyData.hp,
@@ -260,7 +248,6 @@ export default class Game {
 
         this.enemiesToSpawnInCurrentConfig++;
 
-        // 現在の敵タイプをすべて生成したら、次のタイプへ移行
         if (this.enemiesToSpawnInCurrentConfig >= currentEnemyConfig.count) {
             this.currentWaveConfigIndex++;
             this.enemiesToSpawnInCurrentConfig = 0;
