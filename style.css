@@ -1,62 +1,39 @@
-/* ダメージログパネルのスタイル */
-#log-panel {
-    width: 250px;
-    /* パネルの幅を調整 */
-    height: 600px;
-    /* ゲーム画面の高さに合わせる */
-    border: 2px solid #333;
-    background-color: #fff;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    margin-left: 20px;
-    /* ゲーム画面との間隔 */
-    padding: 10px;
-    box-sizing: border-box;
+/* --- General Styles --- */
+body {
+    font-family: 'Arial', sans-serif;
+    background-color: #f0f0f0;
+    margin: 0;
+    padding: 20px;
     display: flex;
     flex-direction: column;
+    align-items: center;
+    color: #333;
 }
 
-#log-panel h3 {
-    margin: 0 0 10px 0;
+h1 {
+    color: #333;
+    margin-bottom: 20px;
     text-align: center;
 }
 
-#log-list {
-    list-style-type: none;
-    padding: 0;
-    margin: 0;
-    font-size: 0.9em;
-    overflow-y: auto;
-    /* ログが多くなったらスクロール可能にする */
-    flex-grow: 1;
+/* --- Main Layout --- */
+#main-container {
     display: flex;
-    flex-direction: column-reverse;
-    /* 新しいログが下に追加されるようにする */
-}
-
-#log-list li {
-    padding: 5px;
-    border-bottom: 1px solid #eee;
-}
-
-/* bodyのレイアウトを変更してゲームとログパネルを横並びにする */
-body {
-    background-color: #f0f0f0;
-    display: flex;
-    /* justify-content: center;を削除して左寄せにする */
+    gap: 20px;
     align-items: flex-start;
-    /* 上揃えにする */
-    height: 100vh;
-    margin: 0;
-    font-family: sans-serif;
-    padding: 20px;
-    /* 全体の余白 */
 }
 
+#game-area {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* --- Game Canvas and UI --- */
 #game-container {
     border: 2px solid #333;
     background-color: #fff;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    margin-bottom: 20px;
 }
 
 canvas {
@@ -68,21 +45,37 @@ canvas {
     display: flex;
     justify-content: space-between;
     align-items: center;
+    background-color: #fff;
+    padding: 10px 20px;
+    border: 2px solid #333;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
 }
 
 #status-panel {
     font-size: 1.5em;
     font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#status-panel p {
+    margin: 0;
+}
+
+#points-display {
+    color: #007bff; /* 青色でポイントを強調 */
 }
 
 #character-selection {
     display: flex;
-    gap: 10px;
+    gap: 15px;
 }
 
+/* --- Character Buttons --- */
 .char-button {
-    width: 80px;
-    height: 80px;
+    width: 100px;
+    height: 100px;
     border: 2px solid #333;
     background-color: #fff;
     cursor: pointer;
@@ -90,12 +83,59 @@ canvas {
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    /* この行を追加 */
-    -webkit-user-select: none;
+    text-align: center;
+    font-weight: bold;
+    transition: transform 0.2s, box-shadow 0.2s;
     user-select: none;
 }
 
+.char-button:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+}
+
 .char-button.selected {
-    border-color: blue;
-    box-shadow: 0 0 5px blue;
+    border-color: #007bff;
+    box-shadow: 0 0 8px #007bff;
+}
+
+/* --- Log Panel --- */
+#log-panel {
+    width: 300px;
+    height: 600px;
+    border: 2px solid #333;
+    background-color: #fff;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    padding: 15px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+}
+
+#log-panel h3 {
+    margin: 0 0 15px 0;
+    text-align: center;
+    color: #555;
+    border-bottom: 2px solid #eee;
+    padding-bottom: 10px;
+}
+
+#log-list {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+    font-size: 0.9em;
+    overflow-y: auto;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column-reverse;
+}
+
+#log-list li {
+    padding: 8px 0;
+    border-bottom: 1px solid #eee;
+}
+
+#log-list li:last-child {
+    border-bottom: none;
 }

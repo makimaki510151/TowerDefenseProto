@@ -1,5 +1,5 @@
 export default class Skill {
-    constructor(name, power, game, cooldown,range) {
+    constructor(name, power, game, cooldown, range) {
         this.name = name;
         this.power = power;
         this.game = game;

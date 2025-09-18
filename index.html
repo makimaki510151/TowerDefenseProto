@@ -10,21 +10,25 @@
 
 <body>
     <h1>タワーディフェンス プロトタイプ</h1>
-    <div id="game-container">
-        <canvas id="gameCanvas"></canvas>
-    </div>
+    <div id="main-container">
+        <div id="game-area">
+            <div id="game-container">
+                <canvas id="gameCanvas"></canvas>
+            </div>
 
-    <div id="ui-container">
-        <div id="status-panel">
-            <p>ポイント: <span id="points-display">100</span></p>
+            <div id="ui-container">
+                <div id="status-panel">
+                    <p>ポイント: <span id="points-display">100</span></p>
+                </div>
+                <div id="character-selection">
+                </div>
+            </div>
         </div>
-        <div id="character-selection">
+        <div id="log-panel">
+            <h3>戦闘ログ</h3>
+            <ul id="log-list">
+            </ul>
         </div>
-    </div>
-    <div id="log-panel">
-        <h3>戦闘ログ</h3>
-        <ul id="log-list">
-        </ul>
     </div>
 
     <script type="module" src="js/main.js"></script>
