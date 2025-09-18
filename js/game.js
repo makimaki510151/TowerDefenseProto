@@ -8,7 +8,7 @@ export default class Game {
         this.field = this.createField(20, 15);
         this.characters = [];
         this.enemies = [];
-        this.points = 0; // ポイントを追加
+        this.points = 100; // ポイントを追加
         this.gridSize = 40;
 
         this.spawnEnemyTimer = 0;
