@@ -22,6 +22,7 @@ export default class Skill {
         let hasHit = false;
         targets.forEach(target => {
             const distance = Math.sqrt(Math.pow(caster.position.x - target.position.x, 2) + Math.pow(caster.position.y - target.position.y, 2));
+            console.log(distance)
             if (distance < this.range) {
                 this.game.addMessage(`${caster.name} が ${target.name} に ${this.power} ダメージを与えた！`);
                 target.takeDamage(this.power);
