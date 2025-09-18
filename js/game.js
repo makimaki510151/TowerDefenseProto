@@ -15,8 +15,8 @@ export default class Game {
         this.selectedCharacter = null;
         this.enemyImage = enemyImage;
 
-        this.messages = [];
-        this.maxMessages = 5;
+        this.logList = document.getElementById('log-list');
+        this.maxLogItems = 10; // 表示するログの最大数を増やす
 
         this.damageTexts = [];
 
@@ -34,9 +34,13 @@ export default class Game {
     }
 
     addMessage(message) {
-        this.messages.push(message);
-        if (this.messages.length > this.maxMessages) {
-            this.messages.shift();
+        const li = document.createElement('li');
+        li.textContent = message;
+        this.logList.appendChild(li);
+
+        // ログの最大数を超えたら古いものを削除
+        if (this.logList.children.length > this.maxLogItems) {
+            this.logList.removeChild(this.logList.firstChild);
         }
     }
 
@@ -133,13 +137,5 @@ export default class Game {
 
         // 💡 追加：ダメージテキストの描画
         this.damageTexts.forEach(text => text.draw(this.ctx));
-
-        // ログの描画
-        this.ctx.fillStyle = 'black';
-        this.ctx.font = '16px Arial';
-        this.ctx.textAlign = 'left';
-        this.messages.forEach((msg, index) => {
-            this.ctx.fillText(msg, 10, this.canvas.height - 20 - (this.maxMessages - 1 - index) * 20);
-        });
     }
 }
