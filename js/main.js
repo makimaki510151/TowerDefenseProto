@@ -8,10 +8,15 @@ function preloadImages(imagePaths) {
     const totalImages = Object.keys(imagePaths).length;
 
     return new Promise((resolve, reject) => {
+        // 画像がない場合でも解決する
+        if (totalImages === 0) {
+            resolve({});
+            return;
+        }
+
         for (const key in imagePaths) {
             const path = imagePaths[key];
             const img = new Image();
-            img.src = path;
             img.onload = () => {
                 loadedCount++;
                 images[key] = img;
@@ -19,7 +24,8 @@ function preloadImages(imagePaths) {
                     resolve(images);
                 }
             };
-            img.onerror = reject;
+            img.onerror = () => reject(new Error(`画像の読み込みに失敗しました: ${path}`));
+            img.src = path;
         }
     });
 }
@@ -40,16 +46,16 @@ window.addEventListener('load', async () => {
     };
 
     try {
-        // キャラクター画像を読み込み
+        // 画像を読み込み、待機
         const charImages = await preloadImages(characterImagePaths);
+        const enemyImages = await preloadImages(enemyImagePaths);
+
+        // キャラクタータイプに画像データを設定
         CharacterTypes.MAGE.image = charImages.mage;
         CharacterTypes.ARCHER.image = charImages.archer;
 
-        // 敵画像を読み込み
-        const enemyImages = await preloadImages(enemyImagePaths);
-        const basicEnemyImage = enemyImages.basicEnemy;
-
-        const game = new Game(canvas, ctx, basicEnemyImage);
+        // Gameクラスに敵の画像を渡す
+        const game = new Game(canvas, ctx, enemyImages.basicEnemy);
 
         // キャラクター選択UIを生成
         const charSelection = document.getElementById('character-selection');
