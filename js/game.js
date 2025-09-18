@@ -11,7 +11,7 @@ export default class Game {
         this.enemies = [];
         this.points = 100;
         this.spawnEnemyTimer = 0;
-        this.spawnEnemyInterval = 100;
+        this.spawnEnemyInterval = 1000;
         this.selectedCharacter = null;
         this.enemyImage = enemyImage;
 
