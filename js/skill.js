@@ -1,10 +1,11 @@
 export default class Skill {
-    constructor(name, power, game, cooldown) {
+    constructor(name, power, game, cooldown,range) {
         this.name = name;
         this.power = power;
         this.game = game;
         this.cooldown = cooldown; // クールタイムの秒数
         this.currentCooldown = 0; // 現在のクールタイム
+        this.range = range
     }
 
     // スキルを発動できるかチェックするメソッド
@@ -21,7 +22,7 @@ export default class Skill {
         let hasHit = false;
         targets.forEach(target => {
             const distance = Math.sqrt(Math.pow(caster.position.x - target.position.x, 2) + Math.pow(caster.position.y - target.position.y, 2));
-            if (distance < 200) {
+            if (distance < this.range) {
                 this.game.addMessage(`${caster.name} が ${target.name} に ${this.power} ダメージを与えた！`);
                 target.takeDamage(this.power);
                 hasHit = true;

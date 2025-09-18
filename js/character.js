@@ -30,15 +30,15 @@ export default class Character {
 // キャラクターの種類にスキル情報を追加
 export const CharacterTypes = {
     MAGE: {
-        name: 'Mage', hp: 80, attack: 10, cost: 50, imagePath: 'assets/mage.png',
+        name: 'キャラ1', hp: 80, attack: 10, cost: 50, imagePath: 'assets/mage.png',
         skills: [
-            { name: 'Fireball', power: 30, cooldown: 2 } // 威力30、クールタイム2秒
+            { name: 'Fireball', power: 30, cooldown: 2, range: 200 } // 威力30、クールタイム2秒
         ]
     },
     ARCHER: {
-        name: 'Archer', hp: 100, attack: 15, cost: 75, imagePath: 'assets/archer.png',
+        name: 'キャラ2', hp: 100, attack: 15, cost: 75, imagePath: 'assets/archer.png',
         skills: [
-            { name: 'Arrow Shot', power: 15, cooldown: 1 } // 威力15、クールタイム1秒
+            { name: 'Arrow Shot', power: 15, cooldown: 1, range: 200 } // 威力15、クールタイム1秒
         ]
     }
 };

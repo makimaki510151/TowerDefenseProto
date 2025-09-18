@@ -82,7 +82,7 @@ export default class Game {
         this.spawnEnemyTimer++;
         if (this.spawnEnemyTimer >= this.spawnEnemyInterval) {
             this.enemies.push(new Enemy(
-                "Basic Enemy",
+                "敵さん",
                 60, 5, 1,
                 { x: 0, y: Math.random() * this.canvas.height },
                 10,
