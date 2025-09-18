@@ -17,7 +17,7 @@ export default class Game {
         this.enemyImage = enemyImage;
 
         this.logList = document.getElementById('log-list');
-        this.maxLogItems = 10;
+        this.maxLogItems = 100;
 
         this.damageTexts = [];
         this.isGameOver = false; // ゲームオーバーフラグを追加
@@ -47,14 +47,18 @@ export default class Game {
     }
 
     addMessage(message) {
-        const li = document.createElement('li');
-        li.textContent = message;
-        this.logList.appendChild(li);
-
-        if (this.logList.children.length > this.maxLogItems) {
-            this.logList.removeChild(this.logList.firstChild);
-        }
+    const li = document.createElement('li');
+    li.textContent = message;
+    
+    // logListの先頭に新しい要素を追加
+    this.logList.appendChild(li);
+    
+    // 古いログを削除
+    if (this.logList.children.length > this.maxLogItems) {
+        // 先頭要素を削除
+        this.logList.removeChild(this.logList.lastChild);
     }
+}
 
     // ★ このメソッドを追加 ★
     addPoints(amount) {
@@ -184,7 +188,7 @@ export default class Game {
             this.ctx.fillText('GAME OVER', this.canvas.width / 2, this.canvas.height / 2);
         }
     }
-    
+
     drawOffscreenArrow(enemy) {
         if (enemy.position.x < 0) {
             this.ctx.fillStyle = 'black';

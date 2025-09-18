@@ -125,10 +125,10 @@ canvas {
     padding: 0;
     margin: 0;
     font-size: 0.9em;
-    overflow-y: auto;
+    overflow-y: auto; /* スクロール可能にする */
     flex-grow: 1;
     display: flex;
-    flex-direction: column-reverse;
+    flex-direction: column; /* ★ 既存のcolumn設定を維持 ★ */
 }
 
 #log-list li {
