@@ -13,6 +13,9 @@ export default class Game {
         this.selectedCharacter = null;
         this.enemyImage = enemyImage;
 
+        this.messages = [];
+        this.maxMessages = 5;
+
         this.setupEventListeners();
     }
 
@@ -22,9 +25,15 @@ export default class Game {
             const mouseX = event.clientX - rect.left;
             const mouseY = event.clientY - rect.top;
 
-            // グリッド計算を削除し、マウスのピクセル座標をそのまま使う
             this.placeCharacter(mouseX, mouseY);
         });
+    }
+
+    addMessage(message) {
+        this.messages.push(message);
+        if (this.messages.length > this.maxMessages) {
+            this.messages.shift();
+        }
     }
 
     placeCharacter(x, y) {
@@ -45,7 +54,7 @@ export default class Game {
             this.selectedCharacter.name,
             this.selectedCharacter.hp,
             this.selectedCharacter.attack,
-            { x, y }, // ここでピクセル座標をそのまま渡す
+            { x, y },
             this.selectedCharacter.cost,
             this.selectedCharacter.image
         );
@@ -58,8 +67,8 @@ export default class Game {
     update() {
         this.spawnEnemyTimer++;
         if (this.spawnEnemyTimer >= this.spawnEnemyInterval) {
-            // 敵の生成位置をランダムなピクセル座標にする
             this.enemies.push(new Enemy(
+                "Basic Enemy",
                 100, 5, 1,
                 { x: 0, y: Math.random() * this.canvas.height },
                 10,
@@ -68,7 +77,7 @@ export default class Game {
             this.spawnEnemyTimer = 0;
         }
 
-        this.characters.forEach(char => char.update(this.enemies));
+        this.characters.forEach(char => char.update(this.enemies, this));
         this.enemies.forEach(enemy => enemy.update());
 
         const initialEnemyCount = this.enemies.length;
@@ -85,26 +94,36 @@ export default class Game {
 
         // キャラクターの描画
         this.characters.forEach(char => {
-            const charSize = 40; // キャラクター画像のサイズ
+            const charSize = 40;
             if (char.image) {
-                // ピクセル座標から画像の中心を基準に描画
                 this.ctx.drawImage(char.image, char.position.x - charSize / 2, char.position.y - charSize / 2, charSize, charSize);
             } else {
                 this.ctx.fillStyle = 'blue';
                 this.ctx.fillRect(char.position.x - charSize / 2, char.position.y - charSize / 2, charSize, charSize);
             }
+            // キャラクターのHP表示
+            char.draw(this.ctx);
         });
 
         // 敵の描画
         this.enemies.forEach(enemy => {
-            const enemySize = 40; // 敵画像のサイズ
+            const enemySize = 40;
             if (enemy.image) {
-                // ピクセル座標から画像の中心を基準に描画
                 this.ctx.drawImage(enemy.image, enemy.position.x - enemySize / 2, enemy.position.y - enemySize / 2, enemySize, enemySize);
             } else {
                 this.ctx.fillStyle = 'red';
                 this.ctx.fillRect(enemy.position.x - enemySize / 2, enemy.position.y - enemySize / 2, enemySize, enemySize);
             }
+            // 敵のHP表示
+            enemy.draw(this.ctx);
+        });
+
+        // ログの描画
+        this.ctx.fillStyle = 'black';
+        this.ctx.font = '16px Arial';
+        this.ctx.textAlign = 'left';
+        this.messages.forEach((msg, index) => {
+            this.ctx.fillText(msg, 10, this.canvas.height - 20 - (this.maxMessages - 1 - index) * 20);
         });
     }
 }

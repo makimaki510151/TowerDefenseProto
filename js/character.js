@@ -8,18 +8,29 @@ export default class Character {
         this.attack = attack;
         this.position = position;
         this.cost = cost;
-        this.skills = [new Skill('Fireball', 5)];
-        this.image = image; // 画像プロパティを追加
+        this.skills = []; // ここで初期化
+        this.image = image;
     }
 
-    update(enemies) {
+    update(enemies, game) {
+        // gameインスタンスを受け取ってからSkillを生成
+        if (this.skills.length === 0) {
+            this.skills.push(new Skill('Fireball', this.attack, game));
+        }
+        
         this.skills.forEach(skill => {
-            skill.use(this.position, enemies);
+            skill.use(this, enemies);
         });
+    }
+
+    draw(ctx) {
+        ctx.fillStyle = 'black';
+        ctx.font = '12px Arial';
+        ctx.textAlign = 'center';
+        ctx.fillText(`${this.name} (${this.hp})`, this.position.x, this.position.y - 30);
     }
 }
 
-// キャラクターの種類に画像パスを追加
 export const CharacterTypes = {
     MAGE: { name: 'Mage', hp: 80, attack: 10, cost: 50, imagePath: 'assets/mage.png' },
     ARCHER: { name: 'Archer', hp: 100, attack: 15, cost: 75, imagePath: 'assets/archer.png' }

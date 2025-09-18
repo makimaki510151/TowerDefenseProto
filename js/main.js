@@ -1,7 +1,6 @@
 import Game from './game.js';
 import { CharacterTypes } from './character.js';
 
-// 画像を事前に読み込む関数
 function preloadImages(imagePaths) {
     const images = {};
     let loadedCount = 0;
