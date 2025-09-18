@@ -12,15 +12,35 @@
     <h1>タワーディフェンス プロトタイプ</h1>
     <div id="main-container">
         <div id="game-area">
-            <div id="game-container">
+            <div id="passive-panel">
+                <h2>パッシブスキルを選択</h2>
+                <div id="passive-selection"></div>
+                <button id="next-to-party-button">次へ</button>
+            </div>
+
+            <div id="party-panel" style="display: none;">
+                <h2>パーティー編成 (4体まで)</h2>
+                <div id="party-selection">
+                    <div id="all-characters"></div>
+                    <div id="selected-party"></div>
+                </div>
+                <button id="next-to-placement-button">次へ</button>
+            </div>
+
+            <div id="placement-panel" style="display: none;">
+                <h2>キャラクター配置</h2>
+                <p>配置したい場所にクリックしてください。</p>
+                <div id="placement-char-list"></div>
+                <button id="start-game-button">準備完了</button>
+            </div>
+
+            <div id="game-container" style="display: none;">
                 <canvas id="gameCanvas"></canvas>
             </div>
 
-            <div id="ui-container">
+            <div id="ui-container" style="display: none;">
                 <div id="status-panel">
-                    <p>ポイント: <span id="points-display">100</span></p>
-                </div>
-                <div id="character-selection">
+                    <p>フェーズ: <span id="game-phase-display">準備中</span></p>
                 </div>
             </div>
         </div>

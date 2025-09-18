@@ -3,6 +3,7 @@ import Character from './character.js';
 import Enemy from './enemy.js';
 import Skill from './skill.js';
 import DamageText from './damageText.js';
+import { CharacterTypes, PassiveTypes } from './character.js';
 
 export default class Game {
     constructor(canvas, ctx, enemyImage) {
@@ -10,20 +11,29 @@ export default class Game {
         this.ctx = ctx;
         this.characters = [];
         this.enemies = [];
-        this.points = 100;
         this.spawnEnemyTimer = 0;
         this.spawnEnemyInterval = 500;
-        this.selectedCharacter = null;
         this.enemyImage = enemyImage;
         this.placedCharacters = new Set();
-
+        this.selectedParty = [];
+        this.selectedCharacter = null;
         this.logList = document.getElementById('log-list');
         this.maxLogItems = 100;
 
         this.damageTexts = [];
-        this.isGameOver = false; // ゲームオーバーフラグを追加
+        this.isGameOver = false;
 
-        // 右端の壁のプロパティを追加
+        this.currentPhase = 'passiveSelection';
+        this.currentWave = 0;
+        this.waveData = [
+            { enemyType: 'basicEnemy', count: 5, interval: 100 },
+            { enemyType: 'basicEnemy', count: 10, interval: 60 },
+        ];
+        this.enemiesInCurrentWave = 0;
+        this.selectedPassive = null;
+        this.isWaveInProgress = false;
+        this.hasAppliedPassive = false;
+
         this.wall = {
             hp: 2000,
             maxHp: 2000,
@@ -37,7 +47,7 @@ export default class Game {
 
     setupEventListeners() {
         this.canvas.addEventListener('click', (event) => {
-            if (this.isGameOver) return; // ゲームオーバー中はキャラクターを配置しない
+            if (this.currentPhase !== 'placement' || this.isWaveInProgress) return; 
 
             const rect = this.canvas.getBoundingClientRect();
             const mouseX = event.clientX - rect.left;
@@ -50,101 +60,136 @@ export default class Game {
     addMessage(message) {
         const li = document.createElement('li');
         li.textContent = message;
-
-        // logListの先頭に新しい要素を追加
         this.logList.appendChild(li);
-
-        // 古いログを削除
         if (this.logList.children.length > this.maxLogItems) {
-            // 先頭要素を削除
             this.logList.removeChild(this.logList.lastChild);
         }
     }
 
-    // ★ このメソッドを追加 ★
-    addPoints(amount) {
-        this.points += amount;
-        document.getElementById('points-display').textContent = this.points;
-        this.addMessage(`${amount} ポイントを獲得しました！`);
-    }
-
     placeCharacter(x, y) {
         if (!this.selectedCharacter) {
-            console.log('キャラクターが選択されていません。');
+            this.addMessage('配置するキャラクターを選択してください。');
             return;
         }
-
-        // 同じキャラクタータイプがすでに配置されている場合は、配置を中止する
-        if (this.placedCharacters.has(this.selectedCharacter.name)) {
-            console.log('このキャラクターはすでに配置されています！');
-            this.addMessage(`${this.selectedCharacter.name} はすでに配置済みです。`);
+        if (this.characters.length >= this.selectedParty.length) {
+            this.addMessage('すべてのパーティーメンバーが配置されました。');
             return;
         }
-
-        if (this.points < this.selectedCharacter.cost) {
-            console.log('ポイントが足りません！');
-            return;
-        }
-
-        this.points -= this.selectedCharacter.cost;
-        document.getElementById('points-display').textContent = this.points;
-
-        const characterSkills = this.selectedCharacter.skills.map(skillInfo => {
-            return new Skill(skillInfo.name, skillInfo.power, this, skillInfo.cooldown, skillInfo.range);
-        });
+        
         const newChar = new Character(
             this.selectedCharacter.name,
             this.selectedCharacter.hp,
             this.selectedCharacter.attack,
             { x, y },
-            this.selectedCharacter.cost,
             this.selectedCharacter.image,
-            characterSkills
+            this.selectedCharacter.skills,
+            this 
         );
         this.characters.push(newChar);
-
-        // 新しく配置したキャラクターの名前をセットに追加
-        this.placedCharacters.add(newChar.name);
-
+        this.addMessage(`${newChar.name} を配置しました。残り ${this.selectedParty.length - this.characters.length} 体`);
+        
         this.selectedCharacter = null;
-        document.querySelectorAll('.char-button').forEach(btn => btn.classList.remove('selected'));
+        document.querySelectorAll('.placement-char-icon').forEach(icon => icon.classList.remove('selected'));
     }
 
-    // 更新メソッドを修正
-    update() {
-        if (this.isGameOver) {
+    selectPassive(passive) {
+        this.selectedPassive = passive;
+        this.addMessage(`${passive.name} を選択しました。`);
+    }
+
+    toggleCharacterInParty(charType) {
+        const index = this.selectedParty.indexOf(charType);
+        if (index > -1) {
+            this.selectedParty.splice(index, 1);
+            this.addMessage(`${charType.name} をパーティーから外しました。`);
+        } else if (this.selectedParty.length < 4) {
+            this.selectedParty.push(charType);
+            this.addMessage(`${charType.name} をパーティーに加えました。`);
+        } else {
+            this.addMessage('パーティーは4体までです。');
+        }
+    }
+
+    applyPassiveToCharacters() {
+        if (this.selectedPassive && !this.hasAppliedPassive) {
+            this.characters.forEach(char => {
+                if (this.selectedPassive.name === 'HPブースト') {
+                    char.maxHp *= 1.2;
+                    char.hp = char.maxHp;
+                } else if (this.selectedPassive.name === '攻撃力ブースト') {
+                    char.attack *= 1.15;
+                    char.skills.forEach(skill => {
+                        skill.power *= 1.15;
+                    });
+                } else if (this.selectedPassive.name === 'クールタイム短縮') {
+                    char.skills.forEach(skill => {
+                        skill.cooldown *= 0.8;
+                    });
+                }
+            });
+            this.hasAppliedPassive = true;
+            this.addMessage('選択したパッシブスキルが適用されました。');
+        }
+    }
+
+    startNextWave() {
+        if (this.currentWave >= this.waveData.length) {
+            this.addMessage('すべてのウェーブをクリアしました！');
+            this.isGameOver = true;
             return;
         }
 
-        this.spawnEnemyTimer++;
-        if (this.spawnEnemyTimer >= this.spawnEnemyInterval) {
-            this.spawnEnemyTimer = 0;
-            this.spawnEnemy();
+        this.currentPhase = 'placement';
+        this.isWaveInProgress = false;
+        this.characters = [];
+        this.enemies = [];
+        this.damageTexts = [];
+        this.hasAppliedPassive = false; // ★この行を追加
+        this.addMessage(`ウェーブ ${this.currentWave + 1} 開始！キャラクターを再配置してください。`);
+    }
+
+    startBattlePhase() {
+        if (!this.hasAppliedPassive) {
+            this.applyPassiveToCharacters();
+        }
+        this.currentPhase = 'battle';
+        document.getElementById('game-phase-display').textContent = '戦闘中';
+        this.isWaveInProgress = true;
+        this.enemiesInCurrentWave = 0;
+        this.spawnEnemyTimer = 0;
+        this.spawnEnemyInterval = this.waveData[this.currentWave].interval;
+        this.addMessage(`ウェーブ ${this.currentWave + 1} の戦闘開始！`);
+        this.currentWave++;
+    }
+
+    update() {
+        if (this.isGameOver || this.currentPhase !== 'battle' || !this.isWaveInProgress) {
+            return;
         }
 
-        // キャラクターと敵の更新
-        this.characters.forEach(char => char.update(this.enemies, this));
-        // 敵のアップデートにキャラクターリストと壁の情報を渡す
+        if (this.enemiesInCurrentWave < this.waveData[this.currentWave - 1].count) {
+            this.spawnEnemyTimer++;
+            if (this.spawnEnemyTimer >= this.spawnEnemyInterval) {
+                this.spawnEnemyTimer = 0;
+                this.spawnEnemy();
+                this.enemiesInCurrentWave++;
+            }
+        }
+
+        this.characters.forEach(char => char.update(this.enemies));
         this.enemies.forEach(enemy => enemy.update(this.characters, this.wall, this));
 
-        // 敵の削除（HPが0以下になった敵）
         this.enemies = this.enemies.filter(enemy => enemy.isAlive);
-
-        // 死亡したキャラクターはリストから削除し、その名前を placedCharacters からも削除する
-        this.characters = this.characters.filter(char => {
-            if (char.hp <= 0) {
-                // キャラクターが死亡した場合、placedCharacters から削除
-                this.placedCharacters.delete(char.name);
-                return false; // リストから削除
-            }
-            return true;
-        });
-
-        // ダメージテキストの更新
+        this.characters = this.characters.filter(char => char.hp > 0);
         this.damageTexts.forEach(text => text.update());
         this.damageTexts = this.damageTexts.filter(text => text.life > 0);
 
-        // ゲームオーバーの判定
+        if (this.enemies.length === 0 && this.enemiesInCurrentWave >= this.waveData[this.currentWave - 1].count) {
+            this.isWaveInProgress = false;
+            this.addMessage(`ウェーブ ${this.currentWave} クリア！`);
+            this.startNextWave();
+        }
+
         if (this.wall.hp <= 0) {
             this.isGameOver = true;
             this.addMessage('ゲームオーバー！');
@@ -163,7 +208,11 @@ export default class Game {
     draw() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-        // キャラクターの描画
+        if (this.currentPhase === 'placement') {
+            this.ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        }
+
         this.characters.forEach(char => {
             const charSize = 40;
             if (char.image) {
@@ -175,7 +224,6 @@ export default class Game {
             char.draw(this.ctx);
         });
 
-        // 敵の描画
         this.enemies.forEach(enemy => {
             const enemySize = 40;
             if (enemy.image) {
@@ -185,22 +233,18 @@ export default class Game {
                 this.ctx.fillRect(enemy.position.x - enemySize / 2, enemy.position.y - enemySize / 2, enemySize, enemySize);
             }
             enemy.draw(this.ctx);
-            // 敵が画面外にいるときに矢印を描画
             this.drawOffscreenArrow(enemy);
         });
 
-        // ダメージテキストの描画
         this.damageTexts.forEach(text => text.draw(this.ctx));
 
-        // 壁の描画
         this.ctx.fillStyle = 'grey';
         this.ctx.fillRect(this.wall.position.x, 0, this.wall.width, this.wall.height);
         this.ctx.fillStyle = 'white';
         this.ctx.font = '24px Arial';
         this.ctx.textAlign = 'right';
-        this.ctx.fillText(`Wall HP: ${Math.max(0, this.wall.hp)}`, this.canvas.width - 30, 30); // HPがマイナスにならないように表示
+        this.ctx.fillText(`Wall HP: ${Math.max(0, this.wall.hp)}`, this.canvas.width - 30, 30);
 
-        // ゲームオーバー表示
         if (this.isGameOver) {
             this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
             this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
@@ -216,15 +260,13 @@ export default class Game {
             this.ctx.fillStyle = 'black';
             this.ctx.beginPath();
             const arrowSize = 15;
-            const xPos = 10; // キャンバスの左端から少し離す
+            const xPos = 10;
             const yPos = enemy.position.y;
-            // 左向きの矢印を描画
             this.ctx.moveTo(xPos + arrowSize, yPos - arrowSize / 2);
             this.ctx.lineTo(xPos, yPos);
             this.ctx.lineTo(xPos + arrowSize, yPos + arrowSize / 2);
             this.ctx.fill();
 
-            // 敵の残りHPを表示
             this.ctx.fillStyle = 'red';
             this.ctx.font = '12px Arial';
             this.ctx.textAlign = 'left';

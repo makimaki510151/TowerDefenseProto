@@ -1,34 +1,34 @@
 import Skill from './skill.js';
 
 export default class Character {
-    constructor(name, hp, attack, position, cost, image, skills) {
+    // コンストラクタに game インスタンスを受け取るように変更
+    constructor(name, hp, attack, position, image, skillsData, game) {
         this.name = name;
         this.hp = hp;
         this.maxHp = hp;
         this.attack = attack;
         this.position = position;
-        this.cost = cost;
-        this.skills = skills;
         this.image = image;
         this.isAlive = true;
+
+        // スキルデータを Skill クラスのインスタンスに変換
+        this.skills = skillsData.map(skillInfo => new Skill(skillInfo.name, skillInfo.power, game, skillInfo.cooldown, skillInfo.range));
     }
 
-    update(enemies, game) {
+    update(enemies) {
         if (!this.isAlive) {
             return;
         }
         this.skills.forEach(skill => {
-            skill.update(); // クールタイムを更新
+            skill.update();
             skill.use(this, enemies);
         });
     }
 
-    // ★ ここにtakeDamageメソッドを追加 ★
     takeDamage(damage) {
         this.hp -= damage;
-        // ダメージを受けたキャラクターのHPが0以下になったらメッセージを出す
         if (this.hp <= 0) {
-            this.isAlive = false; // isAliveをfalseにする
+            this.isAlive = false;
             console.log(`${this.name} は倒されました。`);
         }
     }
@@ -41,18 +41,57 @@ export default class Character {
     }
 }
 
-// キャラクターの種類にスキル情報を追加
 export const CharacterTypes = {
     MAGE: {
-        name: 'キャラ1', hp: 80, attack: 10, cost: 50, imagePath: 'assets/mage.png',
+        name: 'キャラ1', hp: 80, attack: 10, imagePath: 'assets/mage.png',
         skills: [
-            { name: 'Fireball', power: 30, cooldown: 2, range: 200 } // 威力30、クールタイム2秒
+            { name: 'Fireball', power: 30, cooldown: 2, range: 200 }
         ]
     },
     ARCHER: {
-        name: 'キャラ2', hp: 60, attack: 15, cost: 40, imagePath: 'assets/archer.png',
+        name: 'キャラ2', hp: 60, attack: 15, imagePath: 'assets/archer.png',
         skills: [
-            { name: 'Arrow Shot', power: 20, cooldown: 1, range: 300 } // 威力20、クールタイム1秒
+            { name: 'Arrow Shot', power: 20, cooldown: 1, range: 300 }
         ]
+    }
+};
+
+export const PassiveTypes = {
+    HP_BOOST: {
+        name: 'HPブースト',
+        description: '全キャラクターの最大HPを20%増加させる。',
+        apply: (characters) => {
+            characters.forEach(char => {
+                char.maxHp *= 1.2;
+                char.hp = char.maxHp;
+            });
+        }
+    },
+    ATTACK_BOOST: {
+        name: '攻撃力ブースト',
+        description: '全キャラクターの攻撃力を15%増加させる。',
+        apply: (characters) => {
+            characters.forEach(char => {
+                char.attack *= 1.15;
+                char.skills.forEach(skill => {
+                    skill.power *= 1.15;
+                });
+            });
+        }
+    },
+    COOLDOWN_REDUCTION: {
+        name: 'クールタイム短縮',
+        description: '全キャラクターのスキルのクールタイムを20%短縮させる。',
+        apply: (characters) => {
+            characters.forEach(char => {
+                char.skills.forEach(skill => {
+                    skill.cooldown *= 0.8;
+                    // すでにクールタイム中の場合は再計算
+                    if (skill.currentCooldown > 0) {
+                        skill.currentCooldown = skill.cooldown * 60;
+                    }
+                });
+            });
+        }
     }
 };

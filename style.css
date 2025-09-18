@@ -29,6 +29,150 @@ h1 {
     gap: 20px;
 }
 
+/* --- Panels (共通スタイル) --- */
+#passive-panel,
+#party-panel,
+#placement-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 20px;
+    border: 2px solid #333;
+    background-color: #fff;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+    width: 800px;
+    box-sizing: border-box;
+    align-items: center;
+}
+
+#passive-panel h2,
+#party-panel h2,
+#placement-panel h2 {
+    margin: 0;
+    text-align: center;
+}
+
+#passive-panel button,
+#party-panel button,
+#placement-panel button {
+    padding: 10px 20px;
+    font-size: 1em;
+    cursor: pointer;
+    border: 2px solid #007bff;
+    background-color: #fff;
+    color: #007bff;
+    transition: background-color 0.2s, color 0.2s;
+    width: 200px;
+    text-align: center;
+}
+
+#passive-panel button:hover,
+#party-panel button:hover,
+#placement-panel button:hover {
+    background-color: #007bff;
+    color: #fff;
+}
+
+/* --- Passive Selection --- */
+#passive-selection {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+}
+
+.passive-button {
+    flex: 1;
+    padding: 15px;
+    font-weight: bold;
+    border-radius: 5px;
+}
+
+.passive-button.selected {
+    background-color: #007bff;
+    color: #fff;
+}
+
+/* --- Party Selection --- */
+#party-selection {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+}
+
+#all-characters {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.party-char-button {
+    padding: 10px;
+    border: 1px solid #ccc;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.party-char-button.selected {
+    background-color: #d1e7dd;
+    border-color: #198754;
+}
+
+#selected-party {
+    display: flex;
+    gap: 10px;
+    min-height: 50px;
+    border: 1px solid #eee;
+    padding: 5px;
+    width: 100%;
+    justify-content: center;
+    background-color: #f8f8f8;
+}
+
+.party-member {
+    padding: 5px 10px;
+    background-color: #f8f9fa;
+    border: 1px solid #ddd;
+    border-radius: 5px;
+}
+
+/* --- Placement Panel --- */
+#placement-char-list {
+    display: flex;
+    gap: 10px;
+}
+
+.placement-char-icon {
+    width: 60px;
+    /* アイコンの幅 */
+    height: 60px;
+    /* アイコンの高さ */
+    border: 2px solid #ccc;
+    border-radius: 5px;
+    display: flex;
+    flex-direction: column;
+    /* アイコンと名前を縦に並べる */
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    cursor: pointer;
+    font-size: 12px;
+}
+
+.placement-char-icon img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    /* 画像の縦横比を維持したまま、要素内に収まるようにする */
+}
+
+.placement-char-icon.selected {
+    border-color: #007bff;
+    box-shadow: 0 0 8px #007bff;
+}
+
 /* --- Game Canvas and UI --- */
 #game-container {
     border: 2px solid #333;
@@ -42,7 +186,6 @@ canvas {
 
 #ui-container {
     width: 800px;
-    display: flex;
     justify-content: space-between;
     align-items: center;
     background-color: #fff;
@@ -61,42 +204,6 @@ canvas {
 
 #status-panel p {
     margin: 0;
-}
-
-#points-display {
-    color: #007bff; /* 青色でポイントを強調 */
-}
-
-#character-selection {
-    display: flex;
-    gap: 15px;
-}
-
-/* --- Character Buttons --- */
-.char-button {
-    width: 100px;
-    height: 100px;
-    border: 2px solid #333;
-    background-color: #fff;
-    cursor: pointer;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-    font-weight: bold;
-    transition: transform 0.2s, box-shadow 0.2s;
-    user-select: none;
-}
-
-.char-button:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-}
-
-.char-button.selected {
-    border-color: #007bff;
-    box-shadow: 0 0 8px #007bff;
 }
 
 /* --- Log Panel --- */
@@ -125,10 +232,10 @@ canvas {
     padding: 0;
     margin: 0;
     font-size: 0.9em;
-    overflow-y: auto; /* スクロール可能にする */
+    overflow-y: auto;
     flex-grow: 1;
     display: flex;
-    flex-direction: column; /* ★ 既存のcolumn設定を維持 ★ */
+    flex-direction: column;
 }
 
 #log-list li {

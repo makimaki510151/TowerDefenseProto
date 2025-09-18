@@ -17,7 +17,6 @@ export default class Enemy {
         this.attackInterval = 60;
     }
 
-    // `wall` パラメータを追加
     update(characters, wall) {
         if (!this.isAlive) {
             return;
@@ -36,9 +35,7 @@ export default class Enemy {
             }
         });
 
-        // 移動ロジック
         if (target) {
-            // キャラクターがターゲットの場合の移動と攻撃ロジックは変更なし
             const distanceToTarget = Math.sqrt(Math.pow(target.position.x - this.position.x, 2) + Math.pow(target.position.y - this.position.y, 2));
             const attackRange = 25;
 
@@ -55,15 +52,13 @@ export default class Enemy {
             }
 
         } else {
-            // キャラクターがいない場合は壁をターゲットにする
-            const distanceToWall = Math.sqrt(Math.pow(wall.position.x - this.position.x, 2)); // 壁はX座標のみ
-            const wallAttackRange = 30; // 壁への攻撃範囲
+            const distanceToWall = Math.sqrt(Math.pow(wall.position.x - this.position.x, 2));
+            const wallAttackRange = 30;
 
             if (distanceToWall > wallAttackRange) {
                 this.position.x += this.speed;
             }
 
-            // 壁に到達したら攻撃
             else if (this.attackCooldown === 0) {
                 wall.hp -= this.attack;
                 this.game.addMessage(`${this.name} が壁に ${this.attack} ダメージを与えた！`);
@@ -88,10 +83,7 @@ export default class Enemy {
             this.position.x,
             this.position.y - 20
         ));
-        // 敵が倒されたときにポイントを加算
-        if (this.hp <= 0) {
-            this.game.addPoints(this.pointValue);
-        }
+        // 敵が倒されたときのポイント加算ロジックを削除
     }
 
     draw(ctx) {
