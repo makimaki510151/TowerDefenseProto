@@ -1,35 +1,80 @@
 import Game from './game.js';
 import { CharacterTypes } from './character.js';
 
-window.addEventListener('load', () => {
+// 画像を事前に読み込む関数
+function preloadImages(imagePaths) {
+    const images = {};
+    let loadedCount = 0;
+    const totalImages = Object.keys(imagePaths).length;
+
+    return new Promise((resolve, reject) => {
+        for (const key in imagePaths) {
+            const path = imagePaths[key];
+            const img = new Image();
+            img.src = path;
+            img.onload = () => {
+                loadedCount++;
+                images[key] = img;
+                if (loadedCount === totalImages) {
+                    resolve(images);
+                }
+            };
+            img.onerror = reject;
+        }
+    });
+}
+
+window.addEventListener('load', async () => {
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     canvas.width = 800;
     canvas.height = 600;
 
-    const game = new Game(canvas, ctx);
+    // 画像のパスを定義
+    const characterImagePaths = {
+        mage: 'assets/mage.png',
+        archer: 'assets/archer.png'
+    };
+    const enemyImagePaths = {
+        basicEnemy: 'assets/enemy.png'
+    };
 
-    // キャラクター選択UIを生成
-    const charSelection = document.getElementById('character-selection');
-    Object.values(CharacterTypes).forEach(charType => {
-        const button = document.createElement('div');
-        button.classList.add('char-button');
-        button.textContent = `${charType.name} (${charType.cost}pt)`;
-        button.addEventListener('click', () => {
-            game.selectedCharacter = charType;
-            // ボタンの選択状態を更新
-            document.querySelectorAll('.char-button').forEach(btn => btn.classList.remove('selected'));
-            button.classList.add('selected');
+    try {
+        // キャラクター画像を読み込み
+        const charImages = await preloadImages(characterImagePaths);
+        CharacterTypes.MAGE.image = charImages.mage;
+        CharacterTypes.ARCHER.image = charImages.archer;
+
+        // 敵画像を読み込み
+        const enemyImages = await preloadImages(enemyImagePaths);
+        const basicEnemyImage = enemyImages.basicEnemy;
+
+        const game = new Game(canvas, ctx, basicEnemyImage);
+
+        // キャラクター選択UIを生成
+        const charSelection = document.getElementById('character-selection');
+        Object.values(CharacterTypes).forEach(charType => {
+            const button = document.createElement('div');
+            button.classList.add('char-button');
+            button.textContent = `${charType.name} (${charType.cost}pt)`;
+            button.addEventListener('click', () => {
+                game.selectedCharacter = charType;
+                // ボタンの選択状態を更新
+                document.querySelectorAll('.char-button').forEach(btn => btn.classList.remove('selected'));
+                button.classList.add('selected');
+            });
+            charSelection.appendChild(button);
         });
-        charSelection.appendChild(button);
-    });
 
-    // ゲームループ
-    function gameLoop() {
-        game.update();
-        game.draw();
-        requestAnimationFrame(gameLoop);
+        // ゲームループ
+        function gameLoop() {
+            game.update();
+            game.draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        gameLoop();
+    } catch (error) {
+        console.error('画像の読み込みに失敗しました:', error);
     }
-
-    gameLoop();
 });
