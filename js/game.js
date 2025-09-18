@@ -45,7 +45,7 @@ export default class Game {
             this.selectedCharacter.name,
             this.selectedCharacter.hp,
             this.selectedCharacter.attack,
-            { x, y }, // ここでピクセル座標を渡す
+            { x, y }, // ここでピクセル座標をそのまま渡す
             this.selectedCharacter.cost,
             this.selectedCharacter.image
         );
@@ -85,23 +85,25 @@ export default class Game {
 
         // キャラクターの描画
         this.characters.forEach(char => {
+            const charSize = 40; // キャラクター画像のサイズ
             if (char.image) {
-                // ピクセル座標をそのまま使用
-                this.ctx.drawImage(char.image, char.position.x, char.position.y, 40, 40);
+                // ピクセル座標から画像の中心を基準に描画
+                this.ctx.drawImage(char.image, char.position.x - charSize / 2, char.position.y - charSize / 2, charSize, charSize);
             } else {
                 this.ctx.fillStyle = 'blue';
-                this.ctx.fillRect(char.position.x, char.position.y, 40, 40);
+                this.ctx.fillRect(char.position.x - charSize / 2, char.position.y - charSize / 2, charSize, charSize);
             }
         });
 
         // 敵の描画
         this.enemies.forEach(enemy => {
+            const enemySize = 40; // 敵画像のサイズ
             if (enemy.image) {
-                // ピクセル座標をそのまま使用
-                this.ctx.drawImage(enemy.image, enemy.position.x, enemy.position.y, 40, 40);
+                // ピクセル座標から画像の中心を基準に描画
+                this.ctx.drawImage(enemy.image, enemy.position.x - enemySize / 2, enemy.position.y - enemySize / 2, enemySize, enemySize);
             } else {
                 this.ctx.fillStyle = 'red';
-                this.ctx.fillRect(enemy.position.x, enemy.position.y, 40, 40);
+                this.ctx.fillRect(enemy.position.x - enemySize / 2, enemy.position.y - enemySize / 2, enemySize, enemySize);
             }
         });
     }
