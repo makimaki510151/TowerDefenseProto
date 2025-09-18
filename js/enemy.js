@@ -1,5 +1,7 @@
+import DamageText from './damageText.js'; // 💡 追加
+
 export default class Enemy {
-    constructor(name, hp, attack, speed, position, pointValue, image) {
+    constructor(name, hp, attack, speed, position, pointValue, image, game) { // 💡 gameインスタンスを受け取る
         this.name = name;
         this.hp = hp;
         this.maxHp = hp;
@@ -9,6 +11,7 @@ export default class Enemy {
         this.isAlive = true;
         this.pointValue = pointValue;
         this.image = image;
+        this.game = game; // 💡 gameインスタンスをプロパティとして保持
     }
 
     update() {
@@ -20,6 +23,12 @@ export default class Enemy {
 
     takeDamage(damage) {
         this.hp -= damage;
+        // 💡 ダメージを受けたときにDamageTextを生成してGameに渡す
+        this.game.damageTexts.push(new DamageText(
+            damage,
+            this.position.x,
+            this.position.y - 20
+        ));
     }
 
     draw(ctx) {

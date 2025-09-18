@@ -1,5 +1,7 @@
 import Character from './character.js';
 import Enemy from './enemy.js';
+import Skill from './skill.js';
+import DamageText from './damageText.js';
 
 export default class Game {
     constructor(canvas, ctx, enemyImage) {
@@ -15,6 +17,8 @@ export default class Game {
 
         this.messages = [];
         this.maxMessages = 5;
+
+        this.damageTexts = [];
 
         this.setupEventListeners();
     }
@@ -50,13 +54,19 @@ export default class Game {
         this.points -= this.selectedCharacter.cost;
         document.getElementById('points-display').textContent = this.points;
 
+        // Skillインスタンスを生成して渡す
+        const characterSkills = this.selectedCharacter.skills.map(skillInfo => {
+            return new Skill(skillInfo.name, skillInfo.power, this, skillInfo.cooldown);
+        });
+
         const newChar = new Character(
             this.selectedCharacter.name,
             this.selectedCharacter.hp,
             this.selectedCharacter.attack,
             { x, y },
             this.selectedCharacter.cost,
-            this.selectedCharacter.image
+            this.selectedCharacter.image,
+            characterSkills
         );
         this.characters.push(newChar);
 
@@ -72,13 +82,18 @@ export default class Game {
                 100, 5, 1,
                 { x: 0, y: Math.random() * this.canvas.height },
                 10,
-                this.enemyImage
+                this.enemyImage,
+                this // 💡 Gameインスタンスを渡す
             ));
             this.spawnEnemyTimer = 0;
         }
 
         this.characters.forEach(char => char.update(this.enemies, this));
         this.enemies.forEach(enemy => enemy.update());
+
+        // 💡 追加：ダメージテキストの更新
+        this.damageTexts.forEach(text => text.update());
+        this.damageTexts = this.damageTexts.filter(text => text.life > 0);
 
         const initialEnemyCount = this.enemies.length;
         this.enemies = this.enemies.filter(enemy => enemy.isAlive);
@@ -101,7 +116,6 @@ export default class Game {
                 this.ctx.fillStyle = 'blue';
                 this.ctx.fillRect(char.position.x - charSize / 2, char.position.y - charSize / 2, charSize, charSize);
             }
-            // キャラクターのHP表示
             char.draw(this.ctx);
         });
 
@@ -114,9 +128,11 @@ export default class Game {
                 this.ctx.fillStyle = 'red';
                 this.ctx.fillRect(enemy.position.x - enemySize / 2, enemy.position.y - enemySize / 2, enemySize, enemySize);
             }
-            // 敵のHP表示
             enemy.draw(this.ctx);
         });
+
+        // 💡 追加：ダメージテキストの描画
+        this.damageTexts.forEach(text => text.draw(this.ctx));
 
         // ログの描画
         this.ctx.fillStyle = 'black';
