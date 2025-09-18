@@ -1,19 +1,21 @@
 // game.js
+// game.js
 import Character from './character.js';
 import Enemy from './enemy.js';
 import Skill from './skill.js';
 import DamageText from './damageText.js';
 import { CharacterTypes, PassiveTypes } from './character.js';
+import { EnemyTypes } from './enemyTypes.js';
 
 export default class Game {
-    constructor(canvas, ctx, enemyImage) {
+    constructor(canvas, ctx, enemyImages) {
         this.canvas = canvas;
         this.ctx = ctx;
         this.characters = [];
         this.enemies = [];
         this.spawnEnemyTimer = 0;
-        this.spawnEnemyInterval = 500;
-        this.enemyImage = enemyImage;
+        this.spawnEnemyInterval = 100;
+        this.enemyImages = enemyImages;
         this.placedCharacters = new Set();
         this.selectedParty = [];
         this.selectedCharacter = null;
@@ -24,12 +26,19 @@ export default class Game {
         this.isGameOver = false;
 
         this.currentPhase = 'passiveSelection';
-        this.currentWave = 0;
+        this.currentWaveIndex = 0;
+        this.currentWaveConfigIndex = 0;
+
         this.waveData = [
-            { enemyType: 'basicEnemy', count: 5, interval: 100 },
-            { enemyType: 'basicEnemy', count: 10, interval: 60 },
+            // ウェーブ1: 基本的な敵のみ
+            [{ type: 'BASIC', count: 5, interval: 100 }],
+            // ウェーブ2: 基本的な敵と高速な敵がランダムに出現
+            [{ type: 'random', types: ['BASIC', 'FAST'], count: 10, interval: 60 }],
+            // ウェーブ3: 基本的な敵、次に高速な敵、最後にタンク敵
+            [{ type: 'BASIC', count: 5, interval: 50 }, { type: 'FAST', count: 5, interval: 40 }, { type: 'TANK', count: 3, interval: 80 }]
         ];
-        this.enemiesInCurrentWave = 0;
+
+        this.enemiesToSpawnInCurrentConfig = 0;
         this.selectedPassive = null;
         this.isWaveInProgress = false;
         this.hasAppliedPassive = false;
@@ -47,7 +56,7 @@ export default class Game {
 
     setupEventListeners() {
         this.canvas.addEventListener('click', (event) => {
-            if (this.currentPhase !== 'placement' || this.isWaveInProgress) return; 
+            if (this.currentPhase !== 'placement' || this.isWaveInProgress) return;
 
             const rect = this.canvas.getBoundingClientRect();
             const mouseX = event.clientX - rect.left;
@@ -75,26 +84,33 @@ export default class Game {
             this.addMessage('すべてのパーティーメンバーが配置されました。');
             return;
         }
-        
+
         const newChar = new Character(
             this.selectedCharacter.name,
             this.selectedCharacter.hp,
             this.selectedCharacter.attack,
+            this.selectedCharacter.magicAttack,
+            this.selectedCharacter.physicalDefense,
+            this.selectedCharacter.magicDefense,
             { x, y },
             this.selectedCharacter.image,
             this.selectedCharacter.skills,
-            this 
+            this
         );
         this.characters.push(newChar);
         this.addMessage(`${newChar.name} を配置しました。残り ${this.selectedParty.length - this.characters.length} 体`);
-        
+
         this.selectedCharacter = null;
         document.querySelectorAll('.placement-char-icon').forEach(icon => icon.classList.remove('selected'));
     }
 
-    selectPassive(passive) {
-        this.selectedPassive = passive;
-        this.addMessage(`${passive.name} を選択しました。`);
+    selectPassive(passiveKey) {
+        this.selectedPassive = passiveKey;
+        if (PassiveTypes[passiveKey]) {
+            this.addMessage(`${PassiveTypes[passiveKey].name} を選択しました。`);
+        } else {
+            console.error('無効なパッシブスキルが選択されました。');
+        }
     }
 
     toggleCharacterInParty(charType) {
@@ -112,28 +128,14 @@ export default class Game {
 
     applyPassiveToCharacters() {
         if (this.selectedPassive && !this.hasAppliedPassive) {
-            this.characters.forEach(char => {
-                if (this.selectedPassive.name === 'HPブースト') {
-                    char.maxHp *= 1.2;
-                    char.hp = char.maxHp;
-                } else if (this.selectedPassive.name === '攻撃力ブースト') {
-                    char.attack *= 1.15;
-                    char.skills.forEach(skill => {
-                        skill.power *= 1.15;
-                    });
-                } else if (this.selectedPassive.name === 'クールタイム短縮') {
-                    char.skills.forEach(skill => {
-                        skill.cooldown *= 0.8;
-                    });
-                }
-            });
+            PassiveTypes[this.selectedPassive].apply(this.characters);
             this.hasAppliedPassive = true;
             this.addMessage('選択したパッシブスキルが適用されました。');
         }
     }
 
     startNextWave() {
-        if (this.currentWave >= this.waveData.length) {
+        if (this.currentWaveIndex >= this.waveData.length) {
             this.addMessage('すべてのウェーブをクリアしました！');
             this.isGameOver = true;
             return;
@@ -144,8 +146,8 @@ export default class Game {
         this.characters = [];
         this.enemies = [];
         this.damageTexts = [];
-        this.hasAppliedPassive = false; // ★この行を追加
-        this.addMessage(`ウェーブ ${this.currentWave + 1} 開始！キャラクターを再配置してください。`);
+        this.hasAppliedPassive = false;
+        this.addMessage(`ウェーブ ${this.currentWaveIndex + 1} 開始！キャラクターを再配置してください。`);
     }
 
     startBattlePhase() {
@@ -155,11 +157,10 @@ export default class Game {
         this.currentPhase = 'battle';
         document.getElementById('game-phase-display').textContent = '戦闘中';
         this.isWaveInProgress = true;
-        this.enemiesInCurrentWave = 0;
+        this.currentWaveConfigIndex = 0;
+        this.enemiesToSpawnInCurrentConfig = 0;
         this.spawnEnemyTimer = 0;
-        this.spawnEnemyInterval = this.waveData[this.currentWave].interval;
-        this.addMessage(`ウェーブ ${this.currentWave + 1} の戦闘開始！`);
-        this.currentWave++;
+        this.addMessage(`ウェーブ ${this.currentWaveIndex + 1} の戦闘開始！`);
     }
 
     update() {
@@ -167,12 +168,16 @@ export default class Game {
             return;
         }
 
-        if (this.enemiesInCurrentWave < this.waveData[this.currentWave - 1].count) {
+        const currentWaveConfig = this.waveData[this.currentWaveIndex];
+        const currentEnemyTypeConfig = currentWaveConfig[this.currentWaveConfigIndex];
+
+        // 現在の敵タイプの生成が完了しているか、またはすべての敵が生成済みでないかを確認
+        // このロジックは正常に動作しているため変更不要
+        if (currentEnemyTypeConfig && this.enemiesToSpawnInCurrentConfig < currentEnemyTypeConfig.count) {
             this.spawnEnemyTimer++;
             if (this.spawnEnemyTimer >= this.spawnEnemyInterval) {
                 this.spawnEnemyTimer = 0;
                 this.spawnEnemy();
-                this.enemiesInCurrentWave++;
             }
         }
 
@@ -184,11 +189,25 @@ export default class Game {
         this.damageTexts.forEach(text => text.update());
         this.damageTexts = this.damageTexts.filter(text => text.life > 0);
 
-        if (this.enemies.length === 0 && this.enemiesInCurrentWave >= this.waveData[this.currentWave - 1].count) {
+        // --- ★ここから修正 ---
+        // ウェーブが終了したかチェック
+        // 生成された敵の総数を正しく計算
+        const totalEnemiesInWave = currentWaveConfig.reduce((sum, config) => sum + config.count, 0);
+
+        // 現在のウェーブのすべての敵が画面上からいなくなったか、かつ、すべて生成されたか
+        if (this.enemies.length === 0 && this.currentWaveConfigIndex >= currentWaveConfig.length) {
             this.isWaveInProgress = false;
-            this.addMessage(`ウェーブ ${this.currentWave} クリア！`);
-            this.startNextWave();
+            this.addMessage(`ウェーブ ${this.currentWaveIndex + 1} クリア！`);
+            this.currentWaveIndex++;
+
+            if (this.currentWaveIndex < this.waveData.length) {
+                this.startNextWave();
+            } else {
+                this.addMessage('すべてのウェーブをクリアしました！');
+                this.isGameOver = true;
+            }
         }
+        // --- ★修正ここまで ---
 
         if (this.wall.hp <= 0) {
             this.isGameOver = true;
@@ -197,12 +216,55 @@ export default class Game {
     }
 
     spawnEnemy() {
-        const x = 0 - this.enemyImage.width;
-        const y = Math.random() * (this.canvas.height - 40) + 20;
+        const waveConfig = this.waveData[this.currentWaveIndex];
+        const currentEnemyConfig = waveConfig[this.currentWaveConfigIndex];
+
+        if (!currentEnemyConfig) {
+            return;
+        }
+
+        let enemyData;
+        let enemyImage;
+
+        if (currentEnemyConfig.type === 'random') {
+            const randomTypeKey = currentEnemyConfig.types[Math.floor(Math.random() * currentEnemyConfig.types.length)];
+            enemyData = EnemyTypes[randomTypeKey];
+            enemyImage = this.enemyImages[randomTypeKey.toLowerCase() + 'Enemy'];
+            this.spawnEnemyInterval = currentEnemyConfig.interval;
+        } else {
+            enemyData = EnemyTypes[currentEnemyConfig.type];
+            enemyImage = this.enemyImages[currentEnemyConfig.type.toLowerCase() + 'Enemy'];
+            this.spawnEnemyInterval = currentEnemyConfig.interval;
+        }
+
+        if (!enemyData) {
+            console.error(`Unknown enemy type: ${currentEnemyConfig.type}`);
+            return;
+        }
+
+        // 新しい敵を生成
         const newEnemy = new Enemy(
-            '敵', 100, 10, 0.5, { x, y }, 10, this.enemyImage, this
+            enemyData.name,
+            enemyData.hp,
+            enemyData.attack,
+            enemyData.speed,
+            { x: -50, y: Math.random() * this.canvas.height },
+            enemyData.pointValue,
+            enemyImage,
+            this,
+            enemyData.physicalDefense,
+            enemyData.magicDefense,
+            enemyData.attackType
         );
         this.enemies.push(newEnemy);
+
+        this.enemiesToSpawnInCurrentConfig++;
+
+        // 現在の敵タイプをすべて生成したら、次のタイプへ移行
+        if (this.enemiesToSpawnInCurrentConfig >= currentEnemyConfig.count) {
+            this.currentWaveConfigIndex++;
+            this.enemiesToSpawnInCurrentConfig = 0;
+        }
     }
 
     draw() {

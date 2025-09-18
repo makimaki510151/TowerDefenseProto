@@ -1,5 +1,6 @@
 import Game from './game.js';
 import { CharacterTypes, PassiveTypes } from './character.js';
+import { EnemyTypes } from './enemyTypes.js';
 
 function preloadImages(imagePaths) {
     const images = {};
@@ -36,27 +37,33 @@ window.addEventListener('load', async () => {
 
     const characterImagePaths = {
         mage: 'assets/mage.png',
-        archer: 'assets/archer.png'
+        archer: 'assets/archer.png',
+        sniper: 'assets/sniper.png'
     };
     const enemyImagePaths = {
-        basicEnemy: 'assets/enemy.png'
+        basicEnemy: 'assets/enemy.png',
+        fastEnemy: 'assets/fast_enemy.png',
+        tankEnemy: 'assets/tank_enemy.png',
+        mageEnemy: 'assets/mage_enemy.png'
     };
 
     try {
         const charImages = await preloadImages(characterImagePaths);
         const enemyImages = await preloadImages(enemyImagePaths);
 
+        // キャラクタータイプに画像を割り当て
         CharacterTypes.MAGE.image = charImages.mage;
         CharacterTypes.ARCHER.image = charImages.archer;
+        CharacterTypes.SNIPER.image = charImages.sniper;
 
-        const game = new Game(canvas, ctx, enemyImages.basicEnemy);
+        const game = new Game(canvas, ctx, enemyImages);
 
         // UI要素の取得
         const passivePanel = document.getElementById('passive-panel');
         const partyPanel = document.getElementById('party-panel');
         const placementPanel = document.getElementById('placement-panel');
         const gameContainer = document.getElementById('game-container');
-        
+
         const passiveSelectionDiv = document.getElementById('passive-selection');
         const allCharactersDiv = document.getElementById('all-characters');
         const selectedPartyDiv = document.getElementById('selected-party');
@@ -67,26 +74,27 @@ window.addEventListener('load', async () => {
         const startGameButton = document.getElementById('start-game-button');
 
         // --- パッシブスキル選択フェーズ ---
-        Object.values(PassiveTypes).forEach(passive => {
+        // UIの生成とイベントリスナーの設定
+        for (const passiveKey in PassiveTypes) {
+            const passive = PassiveTypes[passiveKey];
             const button = document.createElement('button');
             button.classList.add('passive-button');
             button.textContent = passive.name;
             button.title = passive.description;
             button.addEventListener('click', () => {
-                game.selectPassive(passive);
+                game.selectPassive(passiveKey); // キーを渡すように修正
                 document.querySelectorAll('.passive-button').forEach(btn => btn.classList.remove('selected'));
                 button.classList.add('selected');
             });
             passiveSelectionDiv.appendChild(button);
-        });
-        
+        }
+
         // パッシブ選択完了後、パーティー編成画面へ
         nextToPartyButton.addEventListener('click', () => {
             if (game.selectedPassive) {
                 passivePanel.style.display = 'none';
                 partyPanel.style.display = 'flex';
                 // パーティー編成UIを生成
-                // 既に存在する場合は再生成しない
                 if (allCharactersDiv.children.length === 0) {
                     Object.values(CharacterTypes).forEach(charType => {
                         const button = document.createElement('div');
@@ -123,7 +131,7 @@ window.addEventListener('load', async () => {
                 }
             });
         }
-        
+
         // --- パーティー編成フェーズ ---
         // パーティー編成完了後、配置画面へ
         nextToPlacementButton.addEventListener('click', () => {
@@ -144,7 +152,7 @@ window.addEventListener('load', async () => {
             game.selectedParty.forEach(charType => {
                 const charDiv = document.createElement('div');
                 charDiv.classList.add('placement-char-icon');
-                
+
                 // 画像と名前を表示
                 if (charType.image) {
                     const charImg = document.createElement('img');
@@ -164,7 +172,7 @@ window.addEventListener('load', async () => {
                 placementCharList.appendChild(charDiv);
             });
         }
-        
+
         // --- キャラクター配置フェーズ ---
         // 配置完了後、ゲーム開始
         startGameButton.addEventListener('click', () => {
@@ -184,6 +192,8 @@ window.addEventListener('load', async () => {
             // 配置フェーズに移行した際、UIを切り替える
             if (game.currentPhase === 'placement' && game.isWaveInProgress === false) {
                 if (!hasUpdatedPlacementUI) {
+                    passivePanel.style.display = 'none'; // パッシブパネルを隠す
+                    partyPanel.style.display = 'none'; // パーティーパネルを隠す
                     placementPanel.style.display = 'flex';
                     gameContainer.style.display = 'block';
                     updatePlacementUI();

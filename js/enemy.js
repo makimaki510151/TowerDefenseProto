@@ -2,7 +2,7 @@
 import DamageText from './damageText.js';
 
 export default class Enemy {
-    constructor(name, hp, attack, speed, position, pointValue, image, game) {
+    constructor(name, hp, attack, speed, position, pointValue, image, game, physicalDefense, magicDefense, attackType) {
         this.name = name;
         this.hp = hp;
         this.maxHp = hp;
@@ -15,9 +15,12 @@ export default class Enemy {
         this.game = game;
         this.attackCooldown = 0;
         this.attackInterval = 60;
+        this.physicalDefense = physicalDefense; // 物理防御力
+        this.magicDefense = magicDefense; // 魔法防御力
+        this.attackType = attackType; // 'physical' or 'magic'
     }
 
-    update(characters, wall) {
+    update(characters, wall, game) {
         if (!this.isAlive) {
             return;
         }
@@ -46,8 +49,16 @@ export default class Enemy {
             }
 
             if (distanceToTarget <= attackRange && this.attackCooldown === 0) {
-                this.game.addMessage(`${this.name} が ${target.name} に ${this.attack} ダメージを与えた！`);
-                target.takeDamage(this.attack);
+                // 攻撃タイプに応じてダメージ計算
+                let damage = 0;
+                if (this.attackType === 'physical') {
+                    damage = Math.max(1, this.attack - target.physicalDefense);
+                } else if (this.attackType === 'magic') {
+                    damage = Math.max(1, this.attack - target.magicDefense);
+                }
+                
+                this.game.addMessage(`${this.name} が ${this.attackType === 'physical' ? '物理' : '魔法'}攻撃で ${target.name} に ${damage.toFixed(1)} ダメージを与えた！`);
+                target.takeDamage(damage);
                 this.attackCooldown = this.attackInterval;
             }
 
