@@ -1,3 +1,4 @@
+// game.js
 import Character from './character.js';
 import Enemy from './enemy.js';
 import Skill from './skill.js';
@@ -16,15 +17,27 @@ export default class Game {
         this.enemyImage = enemyImage;
 
         this.logList = document.getElementById('log-list');
-        this.maxLogItems = 10; // 表示するログの最大数を増やす
+        this.maxLogItems = 10;
 
         this.damageTexts = [];
+        this.isGameOver = false; // ゲームオーバーフラグを追加
+
+        // 右端の壁のプロパティを追加
+        this.wall = {
+            hp: 2000,
+            maxHp: 2000,
+            position: { x: this.canvas.width - 20, y: this.canvas.height / 2 },
+            width: 20,
+            height: this.canvas.height,
+        };
 
         this.setupEventListeners();
     }
 
     setupEventListeners() {
         this.canvas.addEventListener('click', (event) => {
+            if (this.isGameOver) return; // ゲームオーバー中はキャラクターを配置しない
+
             const rect = this.canvas.getBoundingClientRect();
             const mouseX = event.clientX - rect.left;
             const mouseY = event.clientY - rect.top;
@@ -38,10 +51,16 @@ export default class Game {
         li.textContent = message;
         this.logList.appendChild(li);
 
-        // ログの最大数を超えたら古いものを削除
         if (this.logList.children.length > this.maxLogItems) {
             this.logList.removeChild(this.logList.firstChild);
         }
+    }
+
+    // ★ このメソッドを追加 ★
+    addPoints(amount) {
+        this.points += amount;
+        document.getElementById('points-display').textContent = this.points;
+        this.addMessage(`${amount} ポイントを獲得しました！`);
     }
 
     placeCharacter(x, y) {
@@ -58,11 +77,9 @@ export default class Game {
         this.points -= this.selectedCharacter.cost;
         document.getElementById('points-display').textContent = this.points;
 
-        // Skillインスタンスを生成して渡す
         const characterSkills = this.selectedCharacter.skills.map(skillInfo => {
             return new Skill(skillInfo.name, skillInfo.power, this, skillInfo.cooldown, skillInfo.range);
         });
-
         const newChar = new Character(
             this.selectedCharacter.name,
             this.selectedCharacter.hp,
@@ -73,39 +90,48 @@ export default class Game {
             characterSkills
         );
         this.characters.push(newChar);
-
         this.selectedCharacter = null;
         document.querySelectorAll('.char-button').forEach(btn => btn.classList.remove('selected'));
     }
 
+    // 更新メソッドを修正
     update() {
-        this.spawnEnemyTimer++;
-        if (this.spawnEnemyTimer >= this.spawnEnemyInterval) {
-            this.enemies.push(new Enemy(
-                "敵さん",
-                60, 5, 1,
-                { x: 0, y: Math.random() * this.canvas.height },
-                10,
-                this.enemyImage,
-                this // 💡 Gameインスタンスを渡す
-            ));
-            this.spawnEnemyTimer = 0;
+        if (this.isGameOver) {
+            return;
         }
 
-        this.characters.forEach(char => char.update(this.enemies, this));
-        this.enemies.forEach(enemy => enemy.update());
+        this.spawnEnemyTimer++;
+        if (this.spawnEnemyTimer >= this.spawnEnemyInterval) {
+            this.spawnEnemyTimer = 0;
+            this.spawnEnemy();
+        }
 
-        // 💡 追加：ダメージテキストの更新
+        // キャラクターと敵の更新
+        this.characters.forEach(char => char.update(this.enemies, this));
+        // 敵のアップデートにキャラクターリストと壁の情報を渡す
+        this.enemies.forEach(enemy => enemy.update(this.characters, this.wall, this));
+
+        // 敵の削除（HPが0以下になった敵）
+        this.enemies = this.enemies.filter(enemy => enemy.isAlive);
+
+        // ダメージテキストの更新
         this.damageTexts.forEach(text => text.update());
         this.damageTexts = this.damageTexts.filter(text => text.life > 0);
 
-        const initialEnemyCount = this.enemies.length;
-        this.enemies = this.enemies.filter(enemy => enemy.isAlive);
-        const defeatedEnemyCount = initialEnemyCount - this.enemies.length;
-        if (defeatedEnemyCount > 0) {
-            this.points += 10 * defeatedEnemyCount;
-            document.getElementById('points-display').textContent = this.points;
+        // ゲームオーバーの判定
+        if (this.wall.hp <= 0) {
+            this.isGameOver = true;
+            this.addMessage('ゲームオーバー！');
         }
+    }
+
+    spawnEnemy() {
+        const x = 0 - this.enemyImage.width;
+        const y = Math.random() * (this.canvas.height - 40) + 20;
+        const newEnemy = new Enemy(
+            '敵', 100, 10, 0.5, { x, y }, 10, this.enemyImage, this
+        );
+        this.enemies.push(newEnemy);
     }
 
     draw() {
@@ -133,9 +159,50 @@ export default class Game {
                 this.ctx.fillRect(enemy.position.x - enemySize / 2, enemy.position.y - enemySize / 2, enemySize, enemySize);
             }
             enemy.draw(this.ctx);
+            // 敵が画面外にいるときに矢印を描画
+            this.drawOffscreenArrow(enemy);
         });
 
-        // 💡 追加：ダメージテキストの描画
+        // ダメージテキストの描画
         this.damageTexts.forEach(text => text.draw(this.ctx));
+
+        // 壁の描画
+        this.ctx.fillStyle = 'grey';
+        this.ctx.fillRect(this.wall.position.x, 0, this.wall.width, this.wall.height);
+        this.ctx.fillStyle = 'white';
+        this.ctx.font = '24px Arial';
+        this.ctx.textAlign = 'right';
+        this.ctx.fillText(`Wall HP: ${Math.max(0, this.wall.hp)}`, this.canvas.width - 30, 30); // HPがマイナスにならないように表示
+
+        // ゲームオーバー表示
+        if (this.isGameOver) {
+            this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+            this.ctx.fillStyle = 'white';
+            this.ctx.font = '50px Arial';
+            this.ctx.textAlign = 'center';
+            this.ctx.fillText('GAME OVER', this.canvas.width / 2, this.canvas.height / 2);
+        }
+    }
+    
+    drawOffscreenArrow(enemy) {
+        if (enemy.position.x < 0) {
+            this.ctx.fillStyle = 'black';
+            this.ctx.beginPath();
+            const arrowSize = 15;
+            const xPos = 10; // キャンバスの左端から少し離す
+            const yPos = enemy.position.y;
+            // 左向きの矢印を描画
+            this.ctx.moveTo(xPos + arrowSize, yPos - arrowSize / 2);
+            this.ctx.lineTo(xPos, yPos);
+            this.ctx.lineTo(xPos + arrowSize, yPos + arrowSize / 2);
+            this.ctx.fill();
+
+            // 敵の残りHPを表示
+            this.ctx.fillStyle = 'red';
+            this.ctx.font = '12px Arial';
+            this.ctx.textAlign = 'left';
+            this.ctx.fillText(`HP: ${enemy.hp}`, xPos + arrowSize + 5, yPos + 5);
+        }
     }
 }

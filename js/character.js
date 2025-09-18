@@ -19,6 +19,15 @@ export default class Character {
         });
     }
 
+    // ★ ここにtakeDamageメソッドを追加 ★
+    takeDamage(damage) {
+        this.hp -= damage;
+        // ダメージを受けたキャラクターのHPが0以下になったらメッセージを出す
+        if (this.hp <= 0) {
+            console.log(`${this.name} は倒されました。`);
+        }
+    }
+
     draw(ctx) {
         ctx.fillStyle = 'black';
         ctx.font = '12px Arial';
@@ -36,9 +45,9 @@ export const CharacterTypes = {
         ]
     },
     ARCHER: {
-        name: 'キャラ2', hp: 100, attack: 15, cost: 75, imagePath: 'assets/archer.png',
+        name: 'キャラ2', hp: 60, attack: 15, cost: 40, imagePath: 'assets/archer.png',
         skills: [
-            { name: 'Arrow Shot', power: 15, cooldown: 1, range: 200 } // 威力15、クールタイム1秒
+            { name: 'Arrow Shot', power: 20, cooldown: 1, range: 300 } // 威力20、クールタイム1秒
         ]
     }
 };
