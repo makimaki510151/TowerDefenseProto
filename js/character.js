@@ -10,9 +10,13 @@ export default class Character {
         this.cost = cost;
         this.skills = skills;
         this.image = image;
+        this.isAlive = true;
     }
 
     update(enemies, game) {
+        if (!this.isAlive) {
+            return;
+        }
         this.skills.forEach(skill => {
             skill.update(); // クールタイムを更新
             skill.use(this, enemies);
@@ -24,6 +28,7 @@ export default class Character {
         this.hp -= damage;
         // ダメージを受けたキャラクターのHPが0以下になったらメッセージを出す
         if (this.hp <= 0) {
+            this.isAlive = false; // isAliveをfalseにする
             console.log(`${this.name} は倒されました。`);
         }
     }

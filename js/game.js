@@ -15,6 +15,7 @@ export default class Game {
         this.spawnEnemyInterval = 500;
         this.selectedCharacter = null;
         this.enemyImage = enemyImage;
+        this.placedCharacters = new Set();
 
         this.logList = document.getElementById('log-list');
         this.maxLogItems = 100;
@@ -47,18 +48,18 @@ export default class Game {
     }
 
     addMessage(message) {
-    const li = document.createElement('li');
-    li.textContent = message;
-    
-    // logListの先頭に新しい要素を追加
-    this.logList.appendChild(li);
-    
-    // 古いログを削除
-    if (this.logList.children.length > this.maxLogItems) {
-        // 先頭要素を削除
-        this.logList.removeChild(this.logList.lastChild);
+        const li = document.createElement('li');
+        li.textContent = message;
+
+        // logListの先頭に新しい要素を追加
+        this.logList.appendChild(li);
+
+        // 古いログを削除
+        if (this.logList.children.length > this.maxLogItems) {
+            // 先頭要素を削除
+            this.logList.removeChild(this.logList.lastChild);
+        }
     }
-}
 
     // ★ このメソッドを追加 ★
     addPoints(amount) {
@@ -70,6 +71,13 @@ export default class Game {
     placeCharacter(x, y) {
         if (!this.selectedCharacter) {
             console.log('キャラクターが選択されていません。');
+            return;
+        }
+
+        // 同じキャラクタータイプがすでに配置されている場合は、配置を中止する
+        if (this.placedCharacters.has(this.selectedCharacter.name)) {
+            console.log('このキャラクターはすでに配置されています！');
+            this.addMessage(`${this.selectedCharacter.name} はすでに配置済みです。`);
             return;
         }
 
@@ -94,6 +102,10 @@ export default class Game {
             characterSkills
         );
         this.characters.push(newChar);
+
+        // 新しく配置したキャラクターの名前をセットに追加
+        this.placedCharacters.add(newChar.name);
+
         this.selectedCharacter = null;
         document.querySelectorAll('.char-button').forEach(btn => btn.classList.remove('selected'));
     }
@@ -117,6 +129,16 @@ export default class Game {
 
         // 敵の削除（HPが0以下になった敵）
         this.enemies = this.enemies.filter(enemy => enemy.isAlive);
+
+        // 死亡したキャラクターはリストから削除し、その名前を placedCharacters からも削除する
+        this.characters = this.characters.filter(char => {
+            if (char.hp <= 0) {
+                // キャラクターが死亡した場合、placedCharacters から削除
+                this.placedCharacters.delete(char.name);
+                return false; // リストから削除
+            }
+            return true;
+        });
 
         // ダメージテキストの更新
         this.damageTexts.forEach(text => text.update());
