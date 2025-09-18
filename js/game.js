@@ -11,7 +11,7 @@ export default class Game {
         this.enemies = [];
         this.points = 100;
         this.spawnEnemyTimer = 0;
-        this.spawnEnemyInterval = 1000;
+        this.spawnEnemyInterval = 500;
         this.selectedCharacter = null;
         this.enemyImage = enemyImage;
 
@@ -79,7 +79,7 @@ export default class Game {
         if (this.spawnEnemyTimer >= this.spawnEnemyInterval) {
             this.enemies.push(new Enemy(
                 "Basic Enemy",
-                100, 5, 1,
+                60, 5, 1,
                 { x: 0, y: Math.random() * this.canvas.height },
                 10,
                 this.enemyImage,
