@@ -60,7 +60,7 @@ export default class Game {
 
         // Skillインスタンスを生成して渡す
         const characterSkills = this.selectedCharacter.skills.map(skillInfo => {
-            return new Skill(skillInfo.name, skillInfo.power, this, skillInfo.cooldown);
+            return new Skill(skillInfo.name, skillInfo.power, this, skillInfo.cooldown, skillInfo.range);
         });
 
         const newChar = new Character(
