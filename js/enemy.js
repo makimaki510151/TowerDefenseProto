@@ -1,16 +1,16 @@
 export default class Enemy {
-    constructor(hp, attack, speed, position) {
+    constructor(hp, attack, speed, position, pointValue) {
         this.hp = hp;
         this.maxHp = hp;
         this.attack = attack;
         this.speed = speed;
         this.position = position;
         this.isAlive = true;
+        this.pointValue = pointValue; // 撃破時のポイントを追加
     }
 
     update() {
-        // シンプルに右方向へ移動
-        this.position.x += this.speed / 60; // 60FPSを想定
+        this.position.x += this.speed / 60;
         if (this.hp <= 0) {
             this.isAlive = false;
         }
