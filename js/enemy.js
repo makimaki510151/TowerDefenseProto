@@ -101,6 +101,12 @@ export default class Enemy {
     }
 
     draw(ctx) {
+        // 敵画像を描画
+        // 画像が読み込まれていれば描画、そうでなければ描画しない
+        if (this.image) {
+            ctx.drawImage(this.image, this.position.x - 25, this.position.y - 25, 50, 50);
+        }
+
         ctx.fillStyle = 'black';
         ctx.font = '12px Arial';
         ctx.textAlign = 'center';

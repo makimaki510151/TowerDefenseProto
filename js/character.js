@@ -87,25 +87,19 @@ export default class Character {
             }
         }
         
-        // --- 以下のコードを追記 ---
-        // ★全てのキャラクターに対応するスキル発動処理を追加
         else if (this.currentSkillCooldown <= 0) {
-            // スキルリストをループして、使用可能なスキルを探す
             for (const skill of this.skills) {
-                // 'まふぃ'の'魔法弾'は特殊な発動条件のため、このループから除外
                 if (this.name === 'まふぃ' && skill.name === '魔法弾') {
                     continue;
                 }
                 
                 if (skill.canUse(this, enemies)) {
-                    // 使用可能なスキルがあれば発動し、クールダウンを設定してループを抜ける
                     skill.use(this, enemies);
                     this.currentSkillCooldown = skill.cooldown * 60;
                     break;
                 }
             }
         }
-        // --- ここまで追記 ---
     }
 
     takeDamage(damage) {
@@ -130,6 +124,12 @@ export default class Character {
     }
 
     draw(ctx) {
+        // キャラクター画像を描画
+        // 画像が読み込まれていれば描画、そうでなければ描画しない
+        if (this.image) {
+            ctx.drawImage(this.image, this.position.x - 25, this.position.y - 25, 50, 50);
+        }
+
         ctx.fillStyle = 'black';
         ctx.font = '12px Arial';
         ctx.textAlign = 'center';

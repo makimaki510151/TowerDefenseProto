@@ -49,19 +49,9 @@ export default class Game {
             height: this.canvas.height,
         };
 
-        this.setupEventListeners();
-    }
-
-    setupEventListeners() {
-        this.canvas.addEventListener('click', (event) => {
-            if (this.currentPhase !== 'placement' || this.isWaveInProgress) return;
-
-            const rect = this.canvas.getBoundingClientRect();
-            const mouseX = event.clientX - rect.left;
-            const mouseY = event.clientY - rect.top;
-
-            this.placeCharacter(mouseX, mouseY);
-        });
+        // ドラッグ＆ドロップ関連のプロパティ
+        this.draggedCharacter = null;
+        this.draggedPosition = { x: 0, y: 0 };
     }
 
     addMessage(message) {
@@ -73,8 +63,8 @@ export default class Game {
         }
     }
 
-    placeCharacter(x, y) {
-        if (!this.selectedCharacter) {
+    placeCharacter(x, y, charType) {
+        if (!charType) {
             this.addMessage('配置するキャラクターを選択してください。');
             return;
         }
@@ -84,25 +74,38 @@ export default class Game {
         }
 
         const newChar = new Character(
-            this.selectedCharacter.name,
-            this.selectedCharacter.hp,
-            this.selectedCharacter.attack,
-            this.selectedCharacter.magicAttack,
-            this.selectedCharacter.physicalDefense,
-            this.selectedCharacter.magicDefense,
-            this.selectedCharacter.attackRange,
-            this.selectedCharacter.attackSpeed,
+            charType.name,
+            charType.hp,
+            charType.attack,
+            charType.magicAttack,
+            charType.physicalDefense,
+            charType.magicDefense,
+            charType.attackRange,
+            charType.attackSpeed,
             { x, y },
-            this.selectedCharacter.image,
-            // 修正箇所：this.selectedCharacter.skillsDataを渡すように変更
-            this.selectedCharacter.skillsData,
+            charType.image,
+            charType.skillsData,
             this
         );
         this.characters.push(newChar);
         this.addMessage(`${newChar.name} を配置しました。残り ${this.selectedParty.length - this.characters.length} 体`);
 
-        this.selectedCharacter = null;
-        document.querySelectorAll('.placement-char-icon').forEach(icon => icon.classList.remove('selected'));
+        const placementCharIcon = document.querySelector(`.placement-char-icon[data-char-type="${charType.name}"]`);
+        if (placementCharIcon) {
+            placementCharIcon.style.display = 'none';
+        }
+    }
+
+    startDragging(charType) {
+        this.draggedCharacter = charType;
+    }
+
+    updateDragPosition(x, y) {
+        this.draggedPosition = { x, y };
+    }
+
+    endDragging() {
+        this.draggedCharacter = null;
     }
 
     selectPassive(passiveKey) {
@@ -141,7 +144,6 @@ export default class Game {
             this.isGameOver = true;
             return;
         }
-
         this.currentPhase = 'placement';
         this.isWaveInProgress = false;
         this.characters = [];
@@ -156,139 +158,98 @@ export default class Game {
             this.applyPassiveToCharacters();
         }
         this.currentPhase = 'battle';
-        document.getElementById('game-phase-display').textContent = '戦闘中';
         this.isWaveInProgress = true;
-        this.currentWaveConfigIndex = 0;
-        this.enemiesToSpawnInCurrentConfig = 0;
-        this.spawnEnemyTimer = 0;
-        this.addMessage(`ウェーブ ${this.currentWaveIndex + 1} の戦闘開始！`);
+        this.addMessage('戦闘開始！');
     }
 
     update() {
-        if (this.isGameOver || this.currentPhase !== 'battle' || !this.isWaveInProgress) {
-            return;
-        }
+        if (this.isGameOver) return;
 
-        const currentWaveConfig = this.waveData[this.currentWaveIndex];
-        const currentEnemyTypeConfig = currentWaveConfig[this.currentWaveConfigIndex];
+        if (this.currentPhase === 'battle' && this.isWaveInProgress) {
+            this.characters.forEach(char => char.update(this.enemies));
+            this.enemies.forEach(enemy => enemy.update(this.characters, this.wall, this));
+            this.fieldEffects.forEach(effect => effect.update(this.enemies));
 
-        if (currentEnemyTypeConfig && this.enemiesToSpawnInCurrentConfig < currentEnemyTypeConfig.count) {
+            this.fieldEffects = this.fieldEffects.filter(effect => effect.duration > 0);
+            this.enemies = this.enemies.filter(enemy => enemy.isAlive);
+            this.damageTexts = this.damageTexts.filter(text => text.life > 0);
+            this.damageTexts.forEach(text => text.update());
+
             this.spawnEnemyTimer++;
-            if (this.spawnEnemyTimer >= this.spawnEnemyInterval) {
-                this.spawnEnemy();
-            }
-        }
 
-        this.characters.forEach(char => char.update(this.enemies));
-        this.enemies.forEach(enemy => enemy.update(this.characters, this.wall, this));
-
-        this.enemies = this.enemies.filter(enemy => enemy.isAlive);
-        this.characters = this.characters.filter(char => char.hp > 0);
-        this.damageTexts.forEach(text => text.update());
-        this.damageTexts = this.damageTexts.filter(text => text.life > 0);
-
-        const totalEnemiesInWave = currentWaveConfig.reduce((sum, config) => sum + config.count, 0);
-
-        if (this.enemies.length === 0 && this.currentWaveConfigIndex >= currentWaveConfig.length) {
-            this.isWaveInProgress = false;
-            this.addMessage(`ウェーブ ${this.currentWaveIndex + 1} クリア！`);
-            this.currentWaveIndex++;
-
+            // ウェーブ進行ロジック
             if (this.currentWaveIndex < this.waveData.length) {
-                this.startNextWave();
-            } else {
+                const currentWaveConfig = this.waveData[this.currentWaveIndex][this.currentWaveConfigIndex];
+
+                // 現在のConfigにまだスポーンする敵がいるかチェック
+                if (currentWaveConfig && this.enemiesToSpawnInCurrentConfig < currentWaveConfig.count) {
+                    if (this.spawnEnemyTimer >= currentWaveConfig.interval) {
+                        this.spawnEnemy();
+                        this.spawnEnemyTimer = 0;
+                        this.enemiesToSpawnInCurrentConfig++;
+                    }
+                }
+                // 現在のConfigの敵をすべてスポーンし終えたら、次のConfigへ
+                else if (this.currentWaveConfigIndex < this.waveData[this.currentWaveIndex].length - 1) {
+                    this.currentWaveConfigIndex++;
+                    this.enemiesToSpawnInCurrentConfig = 0;
+                    this.spawnEnemyTimer = 0; // 次のConfig開始前にタイマーをリセット
+                }
+                // 現在のウェーブの全Configが終了し、かつ敵が残っていない場合、次のウェーブへ
+                else if (this.enemies.length === 0) {
+                    this.addMessage(`ウェーブ ${this.currentWaveIndex + 1} 完了！`);
+                    this.currentWaveIndex++;
+                    this.currentWaveConfigIndex = 0; // 次のウェーブのためにConfig Indexをリセット
+                    this.enemiesToSpawnInCurrentConfig = 0; // 次のウェーブのためにスポーン数をリセット
+                    this.isWaveInProgress = false;
+                    this.startNextWave();
+                }
+            } else if (this.enemies.length === 0 && this.isWaveInProgress) {
                 this.addMessage('すべてのウェーブをクリアしました！');
                 this.isGameOver = true;
             }
-        }
 
-        if (this.wall.hp <= 0) {
-            this.isGameOver = true;
-            this.addMessage('ゲームオーバー！');
-        }
-    }
-
-    spawnEnemy() {
-        const waveConfig = this.waveData[this.currentWaveIndex];
-        const currentEnemyConfig = waveConfig[this.currentWaveConfigIndex];
-
-        if (!currentEnemyConfig) {
-            return;
-        }
-
-        let enemyData;
-        let enemyImage;
-
-        if (currentEnemyConfig.type === 'random') {
-            const randomTypeKey = currentEnemyConfig.types[Math.floor(Math.random() * currentEnemyConfig.types.length)];
-            enemyData = EnemyTypes[randomTypeKey];
-            enemyImage = this.enemyImages[randomTypeKey.toLowerCase() + 'Enemy'];
-            this.spawnEnemyInterval = currentEnemyConfig.interval;
-        } else {
-            enemyData = EnemyTypes[currentEnemyConfig.type];
-            enemyImage = this.enemyImages[currentEnemyConfig.type.toLowerCase() + 'Enemy'];
-            this.spawnEnemyInterval = currentEnemyConfig.interval;
-        }
-
-        if (!enemyData) {
-            console.error(`Unknown enemy type: ${currentEnemyConfig.type}`);
-            return;
-        }
-
-        const newEnemy = new Enemy(
-            enemyData.name,
-            enemyData.hp,
-            enemyData.attack,
-            enemyData.speed,
-            { x: -50, y: Math.random() * this.canvas.height },
-            enemyData.pointValue,
-            enemyImage,
-            this,
-            enemyData.physicalDefense,
-            enemyData.magicDefense,
-            enemyData.attackType
-        );
-        this.enemies.push(newEnemy);
-
-        this.enemiesToSpawnInCurrentConfig++;
-
-        if (this.enemiesToSpawnInCurrentConfig >= currentEnemyConfig.count) {
-            this.currentWaveConfigIndex++;
-            this.enemiesToSpawnInCurrentConfig = 0;
+            if (this.wall.hp <= 0) {
+                this.isGameOver = true;
+                this.addMessage('ゲームオーバー！壁が破壊されました。');
+            }
         }
     }
 
     draw() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-        if (this.currentPhase === 'placement') {
-            this.ctx.fillStyle = 'rgba(0, 255, 0, 0.3)';
-            this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+        // プレースメントフェーズ中の範囲可視化
+        if (this.currentPhase === 'placement' && this.draggedCharacter) {
+            this.ctx.beginPath();
+            this.ctx.arc(this.draggedPosition.x, this.draggedPosition.y, this.draggedCharacter.attackRange, 0, 2 * Math.PI);
+            this.ctx.fillStyle = 'rgba(255, 0, 0, 0.2)';
+            this.ctx.fill();
+            this.ctx.strokeStyle = 'red';
+            this.ctx.stroke();
+
+            this.draggedCharacter.skillsData.forEach(skillInfo => {
+                if (skillInfo.range) {
+                    this.ctx.beginPath();
+                    this.ctx.arc(this.draggedPosition.x, this.draggedPosition.y, skillInfo.range, 0, 2 * Math.PI);
+                    this.ctx.fillStyle = 'rgba(0, 0, 255, 0.2)';
+                    this.ctx.fill();
+                    this.ctx.strokeStyle = 'blue';
+                    this.ctx.stroke();
+                }
+            });
+
+            this.ctx.drawImage(this.draggedCharacter.image, this.draggedPosition.x - 25, this.draggedPosition.y - 25, 50, 50);
         }
 
-        this.characters.forEach(char => {
-            const charSize = 40;
-            if (char.image) {
-                this.ctx.drawImage(char.image, char.position.x - charSize / 2, char.position.y - charSize / 2, charSize, charSize);
-            } else {
-                this.ctx.fillStyle = 'blue';
-                this.ctx.fillRect(char.position.x - charSize / 2, char.position.y - charSize / 2, charSize, charSize);
-            }
-            char.draw(this.ctx);
-        });
+        this.characters.forEach(char => char.draw(this.ctx));
 
         this.enemies.forEach(enemy => {
-            const enemySize = 40;
-            if (enemy.image) {
-                this.ctx.drawImage(enemy.image, enemy.position.x - enemySize / 2, enemy.position.y - enemySize / 2, enemySize, enemySize);
-            } else {
-                this.ctx.fillStyle = 'red';
-                this.ctx.fillRect(enemy.position.x - enemySize / 2, enemy.position.y - enemySize / 2, enemySize, enemySize);
-            }
             enemy.draw(this.ctx);
             this.drawOffscreenArrow(enemy);
         });
 
+        this.fieldEffects.forEach(effect => effect.draw(this.ctx));
         this.damageTexts.forEach(text => text.draw(this.ctx));
 
         this.ctx.fillStyle = 'grey';
@@ -310,20 +271,57 @@ export default class Game {
 
     drawOffscreenArrow(enemy) {
         if (enemy.position.x < 0) {
-            this.ctx.fillStyle = 'black';
+            this.ctx.fillStyle = 'red'; // 矢印の色を赤に変更
             this.ctx.beginPath();
             const arrowSize = 15;
             const xPos = 10;
             const yPos = enemy.position.y;
-            this.ctx.moveTo(xPos + arrowSize, yPos - arrowSize / 2);
-            this.ctx.lineTo(xPos, yPos);
+            this.ctx.moveTo(xPos, yPos);
+            this.ctx.lineTo(xPos + arrowSize, yPos - arrowSize / 2);
             this.ctx.lineTo(xPos + arrowSize, yPos + arrowSize / 2);
+            this.ctx.closePath();
             this.ctx.fill();
-
-            this.ctx.fillStyle = 'red';
-            this.ctx.font = '12px Arial';
-            this.ctx.textAlign = 'left';
-            this.ctx.fillText(`HP: ${enemy.hp}`, xPos + arrowSize + 5, yPos + 5);
         }
+    }
+
+    spawnEnemy() {
+        const currentEnemyConfig = this.waveData[this.currentWaveIndex][this.currentWaveConfigIndex];
+
+        if (!currentEnemyConfig) {
+            return;
+        }
+
+        let enemyTypeKey;
+        if (currentEnemyConfig.type === 'random') {
+            enemyTypeKey = currentEnemyConfig.types[Math.floor(Math.random() * currentEnemyConfig.types.length)];
+        } else {
+            enemyTypeKey = currentEnemyConfig.type;
+        }
+
+        const enemyData = EnemyTypes[enemyTypeKey];
+        // 以下の行を修正しました。キーに 'Enemy' を追加します。
+        const enemyImage = this.enemyImages[enemyTypeKey.toLowerCase() + 'Enemy'];
+
+        if (!enemyData) {
+            console.error(`Unknown enemy type: ${enemyTypeKey}`);
+            return;
+        }
+
+        const newEnemy = new Enemy(
+            enemyData.name,
+            enemyData.hp,
+            enemyData.attack,
+            enemyData.speed,
+            { x: -50, y: Math.random() * this.canvas.height },
+            enemyData.pointValue,
+            enemyImage, // 取得した画像データを直接渡す
+            this,
+            enemyData.physicalDefense,
+            enemyData.magicDefense,
+            enemyData.attackType
+        );
+        this.enemies.push(newEnemy);
+
+        this.enemiesToSpawnInCurrentConfig++;
     }
 }

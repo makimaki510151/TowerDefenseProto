@@ -72,51 +72,16 @@ window.addEventListener('load', async () => {
         const allCharactersDiv = document.getElementById('all-characters');
         const selectedPartyDiv = document.getElementById('selected-party');
         const placementCharList = document.getElementById('placement-char-list');
-
         const nextToPartyButton = document.getElementById('next-to-party-button');
         const nextToPlacementButton = document.getElementById('next-to-placement-button');
         const startGameButton = document.getElementById('start-game-button');
 
-        // --- パッシブスキル選択フェーズ ---
-        // UIの生成とイベントリスナーの設定
-        for (const passiveKey in PassiveTypes) {
-            const passive = PassiveTypes[passiveKey];
-            const button = document.createElement('button');
-            button.classList.add('passive-button');
-            button.textContent = passive.name;
-            button.title = passive.description;
-            button.addEventListener('click', () => {
-                game.selectPassive(passiveKey); // キーを渡すように修正
-                document.querySelectorAll('.passive-button').forEach(btn => btn.classList.remove('selected'));
-                button.classList.add('selected');
-            });
-            passiveSelectionDiv.appendChild(button);
-        }
+        // ドラッグ＆ドロップ関連の状態変数
+        let isDragging = false;
+        let dragTargetChar = null;
+        let dragTargetImage = null;
 
-        // パッシブ選択完了後、パーティー編成画面へ
-        nextToPartyButton.addEventListener('click', () => {
-            if (game.selectedPassive) {
-                passivePanel.style.display = 'none';
-                partyPanel.style.display = 'flex';
-                // パーティー編成UIを生成
-                if (allCharactersDiv.children.length === 0) {
-                    Object.values(CharacterTypes).forEach(charType => {
-                        const button = document.createElement('div');
-                        button.classList.add('party-char-button');
-                        button.textContent = charType.name;
-                        button.addEventListener('click', () => {
-                            game.toggleCharacterInParty(charType);
-                            updatePartyUI();
-                        });
-                        allCharactersDiv.appendChild(button);
-                    });
-                }
-            } else {
-                alert('パッシブスキルを選択してください！');
-            }
-        });
-
-        // パーティー編成UIの更新
+        // --- UI更新関数 ---
         function updatePartyUI() {
             selectedPartyDiv.innerHTML = '';
             game.selectedParty.forEach(charType => {
@@ -136,49 +101,119 @@ window.addEventListener('load', async () => {
             });
         }
 
+        function updatePlacementUI() {
+            placementCharList.innerHTML = '';
+            game.selectedParty.forEach(charType => {
+                const iconDiv = document.createElement('div');
+                iconDiv.classList.add('placement-char-icon');
+                iconDiv.dataset.charType = charType.name;
+                
+                const iconImg = document.createElement('img');
+                iconImg.src = charType.image.src;
+                iconDiv.appendChild(iconImg);
+
+                const charNameSpan = document.createElement('span');
+                charNameSpan.textContent = charType.name;
+                iconDiv.appendChild(charNameSpan);
+
+                iconDiv.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    if (game.characters.length >= game.selectedParty.length) return;
+                    isDragging = true;
+                    dragTargetChar = charType;
+                    dragTargetImage = iconImg;
+                    game.startDragging(dragTargetChar);
+                    iconDiv.style.opacity = '0.5';
+                    iconDiv.style.cursor = 'grabbing';
+                });
+
+                placementCharList.appendChild(iconDiv);
+            });
+        }
+
+        // ドラッグイベントリスナー
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            game.updateDragPosition(mouseX, mouseY);
+        });
+
+        canvas.addEventListener('mouseup', (e) => {
+            if (!isDragging) return;
+            isDragging = false;
+            game.endDragging();
+
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            if (dragTargetChar) {
+                game.placeCharacter(mouseX, mouseY, dragTargetChar);
+                if (dragTargetImage) {
+                    dragTargetImage.parentElement.style.opacity = '1';
+                    dragTargetImage.parentElement.style.cursor = 'grab';
+                }
+            }
+            dragTargetChar = null;
+            dragTargetImage = null;
+        });
+
+
+        // --- パッシブスキル選択フェーズ ---
+        for (const passiveKey in PassiveTypes) {
+            const passive = PassiveTypes[passiveKey];
+            const button = document.createElement('button');
+            button.classList.add('passive-button');
+            button.textContent = passive.name;
+            button.title = passive.description;
+            button.addEventListener('click', () => {
+                game.selectPassive(passiveKey);
+                document.querySelectorAll('.passive-button').forEach(btn => btn.classList.remove('selected'));
+                button.classList.add('selected');
+            });
+            passiveSelectionDiv.appendChild(button);
+        }
+
+        nextToPartyButton.addEventListener('click', () => {
+            if (game.selectedPassive) {
+                passivePanel.style.display = 'none';
+                partyPanel.style.display = 'flex';
+                updatePartyUI();
+            } else {
+                alert('パッシブスキルを選択してください！');
+            }
+        });
+
         // --- パーティー編成フェーズ ---
-        // パーティー編成完了後、配置画面へ
+        for (const charType in CharacterTypes) {
+            const char = CharacterTypes[charType];
+            const button = document.createElement('div');
+            button.classList.add('party-char-button');
+            // char.imagePath が存在しないため、char.image.src を使用
+            button.innerHTML = `<img src="${char.image.src}" alt="${char.name}" style="width: 50px; height: 50px;"><br>${char.name}`;
+            button.title = char.description;
+            button.addEventListener('click', () => {
+                game.toggleCharacterInParty(char);
+                updatePartyUI();
+            });
+            allCharactersDiv.appendChild(button);
+        }
+
         nextToPlacementButton.addEventListener('click', () => {
             if (game.selectedParty.length > 0) {
                 partyPanel.style.display = 'none';
                 placementPanel.style.display = 'flex';
                 gameContainer.style.display = 'block';
-                game.currentPhase = 'placement';
                 updatePlacementUI();
+                game.currentPhase = 'placement';
             } else {
-                alert('パーティーメンバーを編成してください！');
+                alert('パーティーメンバーを1体以上選択してください！');
             }
         });
 
-        // 配置UIの更新
-        function updatePlacementUI() {
-            placementCharList.innerHTML = '';
-            game.selectedParty.forEach(charType => {
-                const charDiv = document.createElement('div');
-                charDiv.classList.add('placement-char-icon');
-
-                // 画像と名前を表示
-                if (charType.image) {
-                    const charImg = document.createElement('img');
-                    charImg.src = charType.image.src;
-                    charImg.alt = charType.name;
-                    charDiv.appendChild(charImg);
-                }
-                const charNameSpan = document.createElement('span');
-                charNameSpan.textContent = charType.name;
-                charDiv.appendChild(charNameSpan);
-
-                charDiv.addEventListener('click', () => {
-                    game.selectedCharacter = charType;
-                    document.querySelectorAll('.placement-char-icon').forEach(icon => icon.classList.remove('selected'));
-                    charDiv.classList.add('selected');
-                });
-                placementCharList.appendChild(charDiv);
-            });
-        }
-
         // --- キャラクター配置フェーズ ---
-        // 配置完了後、ゲーム開始
         startGameButton.addEventListener('click', () => {
             if (game.characters.length === game.selectedParty.length) {
                 placementPanel.style.display = 'none';
@@ -193,11 +228,10 @@ window.addEventListener('load', async () => {
         function gameLoop() {
             game.update();
             game.draw();
-            // 配置フェーズに移行した際、UIを切り替える
             if (game.currentPhase === 'placement' && game.isWaveInProgress === false) {
                 if (!hasUpdatedPlacementUI) {
-                    passivePanel.style.display = 'none'; // パッシブパネルを隠す
-                    partyPanel.style.display = 'none'; // パーティーパネルを隠す
+                    passivePanel.style.display = 'none';
+                    partyPanel.style.display = 'none';
                     placementPanel.style.display = 'flex';
                     gameContainer.style.display = 'block';
                     updatePlacementUI();
@@ -215,6 +249,6 @@ window.addEventListener('load', async () => {
         gameLoop();
 
     } catch (error) {
-        console.error('画像の読み込みに失敗しました:', error);
+        console.error('画像の読み込み中にエラーが発生しました:', error);
     }
 });
