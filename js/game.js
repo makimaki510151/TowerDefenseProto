@@ -68,7 +68,7 @@ export default class Game {
             this.addMessage('配置するキャラクターを選択してください。');
             return;
         }
-        
+
         // 新規配置の場合のみ、キャラクター数のチェックを行う
         const isNewCharacter = !(charType instanceof Character);
         if (isNewCharacter && this.characters.length >= this.selectedParty.length) {
@@ -160,6 +160,7 @@ export default class Game {
         this.characters = [];
         this.enemies = [];
         this.damageTexts = [];
+        this.fieldEffects = []; // ★追加: ウェーブ開始時にフィールド効果をクリア
         this.hasAppliedPassive = false;
         this.addMessage(`ウェーブ ${this.currentWaveIndex + 1} 開始！キャラクターを再配置してください。`);
     }
@@ -173,15 +174,33 @@ export default class Game {
         this.addMessage('戦闘開始！');
     }
 
+    checkEndGame() {
+        if (this.isGameOver || (this.currentWaveIndex >= this.waveData.length && this.enemies.length === 0)) {
+            // ゲームオーバーまたは全ウェーブ完了かつ敵がいない場合
+            this.fieldEffects = []; // 継続範囲の表示をクリア
+            if (!this.isGameOver) {
+                this.isGameOver = true;
+                this.addMessage('全てのウェーブをクリアしました！');
+            }
+        }
+    }
+
+
     update() {
-        if (this.isGameOver) return;
+        if (this.isGameOver) {
+            // ゲームオーバー時にフィールド効果をクリア
+            this.fieldEffects = [];
+            return;
+        }
 
         if (this.currentPhase === 'battle' && this.isWaveInProgress) {
             this.characters.forEach(char => char.update(this.enemies));
             this.enemies.forEach(enemy => enemy.update(this.characters, this.wall, this));
-            this.fieldEffects.forEach(effect => effect.update(this.enemies));
 
+            // ★修正: 継続範囲を更新し、効果時間が終了したものを削除
+            this.fieldEffects.forEach(effect => effect.update(this.enemies));
             this.fieldEffects = this.fieldEffects.filter(effect => effect.duration > 0);
+
             this.enemies = this.enemies.filter(enemy => enemy.isAlive);
             this.damageTexts = this.damageTexts.filter(text => text.life > 0);
             this.damageTexts.forEach(text => text.update());
@@ -215,14 +234,18 @@ export default class Game {
                     this.isWaveInProgress = false;
                     this.startNextWave();
                 }
-            } else if (this.enemies.length === 0 && this.isWaveInProgress) {
+            }
+            // 全てのウェーブが終了し、かつ敵が残っていない場合
+            else if (this.enemies.length === 0 && this.isWaveInProgress) {
                 this.addMessage('すべてのウェーブをクリアしました！');
                 this.isGameOver = true;
+                this.fieldEffects = []; // ゲームクリア時にフィールド効果をクリア
             }
 
             if (this.wall.hp <= 0) {
                 this.isGameOver = true;
                 this.addMessage('ゲームオーバー！壁が破壊されました。');
+                this.fieldEffects = []; // ゲームオーバー時にフィールド効果をクリア
             }
         }
     }
@@ -255,12 +278,31 @@ export default class Game {
             if (charData.skillsData) {
                 charData.skillsData.forEach(skillInfo => {
                     if (skillInfo.range) {
-                        this.ctx.beginPath();
-                        this.ctx.arc(this.draggedPosition.x, this.draggedPosition.y, skillInfo.range, 0, 2 * Math.PI);
-                        this.ctx.fillStyle = 'rgba(0, 0, 255, 0.2)';
-                        this.ctx.fill();
-                        this.ctx.strokeStyle = 'blue';
-                        this.ctx.stroke();
+                        // ★Reiの「苦しいでしょう？」のスキル範囲を長方形で表示
+                        if (this.draggedCharacter.name === 'rei' && skillInfo.name === '苦しいでしょう？') {
+                            const rectWidth = skillInfo.range;
+                            const rectHeight = 100;
+
+                            this.ctx.beginPath();
+                            this.ctx.rect(
+                                this.draggedPosition.x - rectWidth,
+                                this.draggedPosition.y - rectHeight / 2,
+                                rectWidth,
+                                rectHeight
+                            );
+                            this.ctx.fillStyle = 'rgba(0, 0, 255, 0.2)';
+                            this.ctx.fill();
+                            this.ctx.strokeStyle = 'blue';
+                            this.ctx.stroke();
+                        } else {
+                            // ★Rei以外のキャラクター、または他のスキルの場合は通常の円形範囲
+                            this.ctx.beginPath();
+                            this.ctx.arc(this.draggedPosition.x, this.draggedPosition.y, skillInfo.range, 0, 2 * Math.PI);
+                            this.ctx.fillStyle = 'rgba(0, 0, 255, 0.2)';
+                            this.ctx.fill();
+                            this.ctx.strokeStyle = 'blue';
+                            this.ctx.stroke();
+                        }
                     }
                 });
             }

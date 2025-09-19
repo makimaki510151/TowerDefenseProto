@@ -67,7 +67,7 @@ export default class Character {
                 target.takeDamage(damage);
                 this.game.addMessage(`${this.name} は ${target.name} に ${damage.toFixed(1)} の通常攻撃ダメージを与えました。`);
                 const baseCooldownValue = 120;
-                this.currentAttackCooldown = baseCooldownValue / this.attackSpeed * 60;//フレームを秒に直す
+                this.currentAttackCooldown = baseCooldownValue / this.attackSpeed * 60; //フレームを秒に直す
 
                 // ★キャラクターごとの個別処理（通常攻撃後）
                 if (this.name === 'まふぃ') {
@@ -88,15 +88,39 @@ export default class Character {
         }
         
         else if (this.currentSkillCooldown <= 0) {
+            let skillUsed = false;
+            
             for (const skill of this.skills) {
                 if (this.name === 'まふぃ' && skill.name === '魔法弾') {
                     continue;
                 }
                 
-                if (skill.canUse(this, enemies)) {
-                    skill.use(this, enemies);
-                    this.currentSkillCooldown = skill.cooldown * 60;
-                    break;
+                // 零唯のスキル発動ロジック
+                if (this.name === '零唯') {
+                    if (skill.name === 'もう大丈夫') {
+                        // '触れられるとでも？'と'苦しいでしょう？'の条件を満たさない場合のみ発動
+                        const isGroupSkillUsable = this.skills.find(s => s.name === '触れられるとでも？').canUse(this, enemies);
+                        const isLineSkillUsable = this.skills.find(s => s.name === '苦しいでしょう？').canUse(this, enemies);
+                        if (!isGroupSkillUsable && !isLineSkillUsable) {
+                            skill.use(this, enemies);
+                            this.currentSkillCooldown = skill.cooldown * 60;
+                            skillUsed = true;
+                            break;
+                        }
+                    } else if (skill.canUse(this, enemies)) {
+                        skill.use(this, enemies);
+                        this.currentSkillCooldown = skill.cooldown * 60;
+                        skillUsed = true;
+                        break;
+                    }
+                } else {
+                    // 他のキャラクターの通常スキル発動ロジック
+                    if (skill.canUse(this, enemies)) {
+                        skill.use(this, enemies);
+                        this.currentSkillCooldown = skill.cooldown * 60;
+                        skillUsed = true;
+                        break;
+                    }
                 }
             }
         }
@@ -186,7 +210,7 @@ export const CharacterTypes = {
         imagePath: 'assets/mafi.png',
         attackType: 'magic',
         skillsData: [
-            { name: '魔法弾', power: 10, cooldown: 3, range: 300, type: 'magic', targetType: 'highestHP', targetCount: 1, condition: 'manual' }
+            { name: '魔法弾', power: 0.5, cooldown: 13, range: 300, type: 'magic', targetType: 'highestHP', targetCount: 1, condition: 'manual' }
         ]
     }
 };

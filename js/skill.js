@@ -1,5 +1,5 @@
 // skill.js
-import FieldEffect from './fieldEffect.js'; // ★追加
+import FieldEffect from './fieldEffect.js';
 
 export default class Skill {
     constructor(name, power, game, cooldown, range, type, targetType, targetCount, condition) {
@@ -29,44 +29,67 @@ export default class Skill {
         if (this.condition === 'group') {
             return enemiesInRange.length >= 3;
         } else if (this.condition === 'line') {
+            // ★ここから修正
+            const rectWidth = this.range; // スキル範囲を長方形の幅として使用
+            const rectHeight = 100; // 長方形の高さを任意に設定
+
             const rectEnemies = enemies.filter(enemy => {
                 const enemyCenterX = enemy.position.x + 20;
                 const enemyCenterY = enemy.position.y + 20;
-                const relX = enemyCenterX - caster.position.x;
-                const relY = enemyCenterY - caster.position.y;
-                const rotationAngle = Math.atan2(relY, relX);
-                const rectWidth = 100;
-                const rectHeight = 50;
-                const rotatedX = relX * Math.cos(-rotationAngle) - relY * Math.sin(-rotationAngle);
-                const rotatedY = relX * Math.sin(-rotationAngle) + relY * Math.cos(-rotationAngle);
-                return rotatedX >= 0 && rotatedX <= rectWidth && rotatedY >= -rectHeight / 2 && rotatedY <= rectHeight / 2;
+
+                // 長方形の境界を定義（左方向へ伸びる）
+                const left = caster.position.x - rectWidth;
+                const right = caster.position.x;
+                const top = caster.position.y - rectHeight / 2;
+                const bottom = caster.position.y + rectHeight / 2;
+
+                // 敵の中心点が長方形の範囲内にあるか判定
+                return enemyCenterX >= left && enemyCenterX <= right &&
+                    enemyCenterY >= top && enemyCenterY <= bottom;
             });
+            // 範囲内に1体でも敵がいればスキル発動
             return rectEnemies.length >= 1;
         }
         return enemiesInRange.length > 0;
     }
 
     use(caster, enemies, stackCount = 1) {
-        // ... (targetsの選定ロジックは変更なし)
-
-        // ★スキル名で個別処理を分岐
+        // スキル「苦しいでしょう？」の個別処理
         if (this.name === '苦しいでしょう？') {
-            const slowFactor = 0.5; // 50%減速
-            const duration = 5; // 5秒間
-            const damagePerTick = caster.magicAttack * this.power / duration;
-            this.game.fieldEffects.push(new FieldEffect(this.game, caster, caster.position, this.range, duration, damagePerTick, slowFactor));
+            const slowFactor = 0.5;
+            const duration = 5;
+
+            const rectWidth = this.range;
+            const rectHeight = 100;
+            const left = caster.position.x - rectWidth;
+            const right = caster.position.x;
+            const top = caster.position.y - rectHeight / 2;
+            const bottom = caster.position.y + rectHeight / 2;
+
+            const targets = enemies.filter(enemy => {
+                const enemyCenterX = enemy.position.x;
+                const enemyCenterY = enemy.position.y;
+                return enemyCenterX >= left && enemyCenterX <= right &&
+                    enemyCenterY >= top && enemyCenterY <= bottom;
+            });
+
+            // ここを修正：長方形の中心座標ではなく、スキル発動者の位置を渡すように変更
+            // そして、rectWidthとrectHeightをFieldEffectのコンストラクタに正しく渡す
+            this.game.fieldEffects.push(new FieldEffect(this.game, caster, caster.position, this.range, duration, this.power, slowFactor, 'rectangle', rectWidth, rectHeight));
+
             this.game.addMessage(`${caster.name} が ${this.name} を発動し、範囲内にダメージと速度低下のフィールドを展開した！`);
+            return; // 処理を終了
         }
         else {
             const enemiesInRange = enemies.filter(target => {
                 const distance = Math.hypot(caster.position.x - target.position.x, caster.position.y - target.position.y);
                 return distance <= this.range;
             });
-    
+
             if (enemiesInRange.length === 0) {
                 return;
             }
-    
+
             let targets = [];
             if (this.targetType === 'closest') {
                 enemiesInRange.sort((a, b) => Math.hypot(caster.position.x - a.position.x, caster.position.y - a.position.y) - Math.hypot(caster.position.x - b.position.x, caster.position.y - b.position.y));
@@ -77,7 +100,7 @@ export default class Skill {
                 enemiesInRange.sort((a, b) => b.hp - a.hp);
                 targets = enemiesInRange.slice(0, this.targetCount);
             }
-    
+
             let hasHit = false;
             targets.forEach(target => {
                 // スキル名で個別処理を分岐
