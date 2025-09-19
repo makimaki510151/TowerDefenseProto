@@ -41,6 +41,7 @@ window.addEventListener('load', async () => {
         sniper: 'assets/sniper.png',
         rei: 'assets/rei.png',
         mafi: 'assets/mafi.png',
+        umi: 'assets/umi.png',
     };
     const enemyImagePaths = {
         basicEnemy: 'assets/enemy.png',
@@ -59,6 +60,7 @@ window.addEventListener('load', async () => {
         CharacterTypes.SNIPER.image = charImages.sniper;
         CharacterTypes.REI.image = charImages.rei;
         CharacterTypes.MAFI.image = charImages.mafi;
+        CharacterTypes.UMI.image = charImages.umi;
 
         const game = new Game(canvas, ctx, enemyImages);
 
