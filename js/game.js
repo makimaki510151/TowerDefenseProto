@@ -68,27 +68,37 @@ export default class Game {
             this.addMessage('配置するキャラクターを選択してください。');
             return;
         }
-        if (this.characters.length >= this.selectedParty.length) {
+        
+        // 新規配置の場合のみ、キャラクター数のチェックを行う
+        const isNewCharacter = !(charType instanceof Character);
+        if (isNewCharacter && this.characters.length >= this.selectedParty.length) {
             this.addMessage('すべてのパーティーメンバーが配置されました。');
             return;
         }
 
-        const newChar = new Character(
-            charType.name,
-            charType.hp,
-            charType.attack,
-            charType.magicAttack,
-            charType.physicalDefense,
-            charType.magicDefense,
-            charType.attackRange,
-            charType.attackSpeed,
-            { x, y },
-            charType.image,
-            charType.skillsData,
-            this
-        );
-        this.characters.push(newChar);
-        this.addMessage(`${newChar.name} を配置しました。残り ${this.selectedParty.length - this.characters.length} 体`);
+        if (isNewCharacter) {
+            const newChar = new Character(
+                charType.name,
+                charType.hp,
+                charType.attack,
+                charType.magicAttack,
+                charType.physicalDefense,
+                charType.magicDefense,
+                charType.attackRange,
+                charType.attackSpeed,
+                { x, y },
+                charType.image,
+                charType.skillsData,
+                this
+            );
+            this.characters.push(newChar);
+            this.addMessage(`${newChar.name} を配置しました。残り ${this.selectedParty.length - this.characters.length} 体`);
+        } else {
+            // 既存キャラクターの再配置
+            charType.position.x = x;
+            charType.position.y = y;
+            this.addMessage(`${charType.name} の位置を変更しました。`);
+        }
 
         const placementCharIcon = document.querySelector(`.placement-char-icon[data-char-type="${charType.name}"]`);
         if (placementCharIcon) {
@@ -96,8 +106,9 @@ export default class Game {
         }
     }
 
-    startDragging(charType) {
-        this.draggedCharacter = charType;
+    startDragging(characterOrType) {
+        // ドラッグ対象がCharacterクラスのインスタンスか、CharacterTypesのデータか判断
+        this.draggedCharacter = characterOrType;
     }
 
     updateDragPosition(x, y) {
@@ -219,30 +230,44 @@ export default class Game {
     draw() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-        // プレースメントフェーズ中の範囲可視化
+        // キャラクターを描画
+        this.characters.forEach(char => {
+            // ドラッグ中のキャラクターは描画しない
+            if (char === this.draggedCharacter) {
+                return;
+            }
+            char.draw(this.ctx);
+        });
+
+        // プレースメントフェーズ中の範囲可視化とドラッグ中のキャラクターの描画
         if (this.currentPhase === 'placement' && this.draggedCharacter) {
+            const charData = this.draggedCharacter instanceof Character ? this.draggedCharacter : this.draggedCharacter;
+
+            // 攻撃範囲
             this.ctx.beginPath();
-            this.ctx.arc(this.draggedPosition.x, this.draggedPosition.y, this.draggedCharacter.attackRange, 0, 2 * Math.PI);
+            this.ctx.arc(this.draggedPosition.x, this.draggedPosition.y, charData.attackRange, 0, 2 * Math.PI);
             this.ctx.fillStyle = 'rgba(255, 0, 0, 0.2)';
             this.ctx.fill();
             this.ctx.strokeStyle = 'red';
             this.ctx.stroke();
 
-            this.draggedCharacter.skillsData.forEach(skillInfo => {
-                if (skillInfo.range) {
-                    this.ctx.beginPath();
-                    this.ctx.arc(this.draggedPosition.x, this.draggedPosition.y, skillInfo.range, 0, 2 * Math.PI);
-                    this.ctx.fillStyle = 'rgba(0, 0, 255, 0.2)';
-                    this.ctx.fill();
-                    this.ctx.strokeStyle = 'blue';
-                    this.ctx.stroke();
-                }
-            });
+            // スキル範囲
+            if (charData.skillsData) {
+                charData.skillsData.forEach(skillInfo => {
+                    if (skillInfo.range) {
+                        this.ctx.beginPath();
+                        this.ctx.arc(this.draggedPosition.x, this.draggedPosition.y, skillInfo.range, 0, 2 * Math.PI);
+                        this.ctx.fillStyle = 'rgba(0, 0, 255, 0.2)';
+                        this.ctx.fill();
+                        this.ctx.strokeStyle = 'blue';
+                        this.ctx.stroke();
+                    }
+                });
+            }
 
-            this.ctx.drawImage(this.draggedCharacter.image, this.draggedPosition.x - 25, this.draggedPosition.y - 25, 50, 50);
+            // ドラッグ中のキャラクターアイコン
+            this.ctx.drawImage(charData.image, this.draggedPosition.x - 25, this.draggedPosition.y - 25, 50, 50);
         }
-
-        this.characters.forEach(char => char.draw(this.ctx));
 
         this.enemies.forEach(enemy => {
             enemy.draw(this.ctx);

@@ -78,8 +78,9 @@ window.addEventListener('load', async () => {
 
         // ドラッグ＆ドロップ関連の状態変数
         let isDragging = false;
-        let dragTargetChar = null;
-        let dragTargetImage = null;
+        let dragTargetChar = null; // ドラッグ対象のキャラクターオブジェクトまたはキャラクタータイプ
+        let dragTargetElement = null; // ドラッグ対象のHTML要素（アイコンなど）
+        let isNewPlacement = false;
 
         // --- UI更新関数 ---
         function updatePartyUI() {
@@ -107,7 +108,7 @@ window.addEventListener('load', async () => {
                 const iconDiv = document.createElement('div');
                 iconDiv.classList.add('placement-char-icon');
                 iconDiv.dataset.charType = charType.name;
-                
+
                 const iconImg = document.createElement('img');
                 iconImg.src = charType.image.src;
                 iconDiv.appendChild(iconImg);
@@ -121,45 +122,15 @@ window.addEventListener('load', async () => {
                     if (game.characters.length >= game.selectedParty.length) return;
                     isDragging = true;
                     dragTargetChar = charType;
-                    dragTargetImage = iconImg;
+                    dragTargetElement = iconDiv; // HTML要素を保存
+                    isNewPlacement = true;
                     game.startDragging(dragTargetChar);
-                    iconDiv.style.opacity = '0.5';
-                    iconDiv.style.cursor = 'grabbing';
+                    iconDiv.classList.add('selected'); // 新規配置アイコンを選択状態にする
                 });
 
                 placementCharList.appendChild(iconDiv);
             });
         }
-
-        // ドラッグイベントリスナー
-        canvas.addEventListener('mousemove', (e) => {
-            if (!isDragging) return;
-            const rect = canvas.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left;
-            const mouseY = e.clientY - rect.top;
-            game.updateDragPosition(mouseX, mouseY);
-        });
-
-        canvas.addEventListener('mouseup', (e) => {
-            if (!isDragging) return;
-            isDragging = false;
-            game.endDragging();
-
-            const rect = canvas.getBoundingClientRect();
-            const mouseX = e.clientX - rect.left;
-            const mouseY = e.clientY - rect.top;
-
-            if (dragTargetChar) {
-                game.placeCharacter(mouseX, mouseY, dragTargetChar);
-                if (dragTargetImage) {
-                    dragTargetImage.parentElement.style.opacity = '1';
-                    dragTargetImage.parentElement.style.cursor = 'grab';
-                }
-            }
-            dragTargetChar = null;
-            dragTargetImage = null;
-        });
-
 
         // --- パッシブスキル選択フェーズ ---
         for (const passiveKey in PassiveTypes) {
@@ -191,7 +162,6 @@ window.addEventListener('load', async () => {
             const char = CharacterTypes[charType];
             const button = document.createElement('div');
             button.classList.add('party-char-button');
-            // char.imagePath が存在しないため、char.image.src を使用
             button.innerHTML = `<img src="${char.image.src}" alt="${char.name}" style="width: 50px; height: 50px;"><br>${char.name}`;
             button.title = char.description;
             button.addEventListener('click', () => {
@@ -220,6 +190,92 @@ window.addEventListener('load', async () => {
                 game.startBattlePhase();
             } else {
                 alert('すべてのキャラクターを配置してください！');
+            }
+        });
+
+        // --- ドラッグ＆ドロップイベントリスナー ---
+        // 新規配置と再配置のロジックを統合し、よりシンプルに
+        canvas.addEventListener('mousedown', (e) => {
+            if (game.currentPhase !== 'placement') return;
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            // 既存のキャラクターをチェック
+            const existingChar = game.characters.find(char => {
+                const distance = Math.hypot(char.position.x - mouseX, char.position.y - mouseY);
+                return distance < 25;
+            });
+
+            if (existingChar) {
+                // 既存キャラクターの再配置
+                isDragging = true;
+                dragTargetChar = existingChar;
+                isNewPlacement = false;
+                game.startDragging(dragTargetChar);
+                // 既存キャラクターのアイコンに選択状態を付与するUIロジックがあれば、ここに追加
+            } else {
+                // 新規配置のチェック
+                const selectedIcon = document.querySelector('.placement-char-icon.selected');
+                if (selectedIcon && game.characters.length < game.selectedParty.length) {
+                    const charType = CharacterTypes[selectedIcon.dataset.charType];
+                    if (charType) {
+                        isDragging = true;
+                        dragTargetChar = charType;
+                        isNewPlacement = true;
+                        game.startDragging(dragTargetChar);
+                        // 新規配置中はアイコンを非表示にする
+                        selectedIcon.style.display = 'none';
+                    }
+                }
+            }
+        });
+        
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isDragging) return;
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+            game.updateDragPosition(mouseX, mouseY);
+        });
+
+        canvas.addEventListener('mouseup', (e) => {
+            if (!isDragging) return;
+            isDragging = false;
+            game.endDragging();
+            
+            const rect = canvas.getBoundingClientRect();
+            const mouseX = e.clientX - rect.left;
+            const mouseY = e.clientY - rect.top;
+
+            if (isNewPlacement) {
+                // 新規配置
+                game.placeCharacter(mouseX, mouseY, dragTargetChar);
+                // 新規配置アイコンを再表示
+                const selectedIcon = document.querySelector('.placement-char-icon.selected');
+                if (selectedIcon) {
+                    selectedIcon.style.display = 'flex';
+                    selectedIcon.classList.remove('selected');
+                }
+            } else if (dragTargetChar) {
+                // 既存キャラクターの再配置
+                dragTargetChar.position.x = mouseX;
+                dragTargetChar.position.y = mouseY;
+            }
+
+            dragTargetChar = null;
+        });
+
+        // 配置アイコンクリックで選択状態にするイベント
+        document.addEventListener('mousedown', (e) => {
+            // placement-char-icon クラスを持つ要素がクリックされたかチェック
+            const icon = e.target.closest('.placement-char-icon');
+            if (icon && game.currentPhase === 'placement') {
+                e.preventDefault();
+                // 既存の選択状態を解除
+                document.querySelectorAll('.placement-char-icon.selected').forEach(btn => btn.classList.remove('selected'));
+                // 新しい要素を選択状態にする
+                icon.classList.add('selected');
             }
         });
 
