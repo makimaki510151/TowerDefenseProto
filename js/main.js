@@ -230,7 +230,7 @@ window.addEventListener('load', async () => {
                 }
             }
         });
-        
+
         canvas.addEventListener('mousemove', (e) => {
             if (!isDragging) return;
             const rect = canvas.getBoundingClientRect();
@@ -243,7 +243,7 @@ window.addEventListener('load', async () => {
             if (!isDragging) return;
             isDragging = false;
             game.endDragging();
-            
+
             const rect = canvas.getBoundingClientRect();
             const mouseX = e.clientX - rect.left;
             const mouseY = e.clientY - rect.top;
@@ -267,15 +267,24 @@ window.addEventListener('load', async () => {
         });
 
         // 配置アイコンクリックで選択状態にするイベント
-        document.addEventListener('mousedown', (e) => {
-            // placement-char-icon クラスを持つ要素がクリックされたかチェック
-            const icon = e.target.closest('.placement-char-icon');
-            if (icon && game.currentPhase === 'placement') {
-                e.preventDefault();
-                // 既存の選択状態を解除
-                document.querySelectorAll('.placement-char-icon.selected').forEach(btn => btn.classList.remove('selected'));
-                // 新しい要素を選択状態にする
-                icon.classList.add('selected');
+        canvas.addEventListener('mousedown', (e) => {
+            if (game.currentPhase === 'placement') {
+                const rect = canvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+
+                // 既存のキャラクターを再配置するために選択するロジック
+                for (const char of game.characters) {
+                    const dist = Math.hypot(char.position.x - mouseX, char.position.y - mouseY);
+                    if (dist < 25) { // キャラクターの中心から25px以内でクリック
+                        e.preventDefault();
+                        isDragging = true;
+                        dragTargetChar = char; // Characterインスタンスをドラッグ対象に設定
+                        isNewPlacement = false;
+                        game.startDragging(dragTargetChar);
+                        break;
+                    }
+                }
             }
         });
 

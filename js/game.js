@@ -264,9 +264,10 @@ export default class Game {
 
         // プレースメントフェーズ中の範囲可視化とドラッグ中のキャラクターの描画
         if (this.currentPhase === 'placement' && this.draggedCharacter) {
-            const charData = this.draggedCharacter instanceof Character ? this.draggedCharacter : this.draggedCharacter;
+            const charData = this.draggedCharacter.skillsData ? this.draggedCharacter : this.draggedCharacter;
+            const skillsToDraw = charData.skillsData || charData.skills;
 
-            // 攻撃範囲
+            // 攻撃範囲を描画（円）
             this.ctx.beginPath();
             this.ctx.arc(this.draggedPosition.x, this.draggedPosition.y, charData.attackRange, 0, 2 * Math.PI);
             this.ctx.fillStyle = 'rgba(255, 0, 0, 0.2)';
@@ -274,15 +275,15 @@ export default class Game {
             this.ctx.strokeStyle = 'red';
             this.ctx.stroke();
 
-            // スキル範囲
-            if (charData.skillsData) {
-                charData.skillsData.forEach(skillInfo => {
-                    if (skillInfo.range) {
-                        // ★Reiの「苦しいでしょう？」のスキル範囲を長方形で表示
-                        if (this.draggedCharacter.name === 'rei' && skillInfo.name === '苦しいでしょう？') {
-                            const rectWidth = skillInfo.range;
+            // スキル範囲を描画
+            if (skillsToDraw && skillsToDraw.length > 0) {
+                skillsToDraw.forEach(skillInfo => {
+                    const range = skillInfo.range;
+                    if (range) {
+                        if (skillInfo.name === '苦しいでしょう？') {
+                            // Reiの「苦しいでしょう？」のスキル範囲を長方形で表示
+                            const rectWidth = range;
                             const rectHeight = 100;
-
                             this.ctx.beginPath();
                             this.ctx.rect(
                                 this.draggedPosition.x - rectWidth,
@@ -295,9 +296,9 @@ export default class Game {
                             this.ctx.strokeStyle = 'blue';
                             this.ctx.stroke();
                         } else {
-                            // ★Rei以外のキャラクター、または他のスキルの場合は通常の円形範囲
+                            // その他のスキルの場合は通常の円形範囲
                             this.ctx.beginPath();
-                            this.ctx.arc(this.draggedPosition.x, this.draggedPosition.y, skillInfo.range, 0, 2 * Math.PI);
+                            this.ctx.arc(this.draggedPosition.x, this.draggedPosition.y, range, 0, 2 * Math.PI);
                             this.ctx.fillStyle = 'rgba(0, 0, 255, 0.2)';
                             this.ctx.fill();
                             this.ctx.strokeStyle = 'blue';
@@ -311,20 +312,18 @@ export default class Game {
             this.ctx.drawImage(charData.image, this.draggedPosition.x - 25, this.draggedPosition.y - 25, 50, 50);
         }
 
+        // 壁の描画
+        this.ctx.fillStyle = '#8B4513';
+        this.ctx.fillRect(this.wall.position.x, 0, this.wall.width, this.canvas.height);
+        //this.drawWallHpBar();
+
+        // 敵、フィールド効果、ダメージテキストの描画（既存のコード）
         this.enemies.forEach(enemy => {
             enemy.draw(this.ctx);
             this.drawOffscreenArrow(enemy);
         });
-
         this.fieldEffects.forEach(effect => effect.draw(this.ctx));
         this.damageTexts.forEach(text => text.draw(this.ctx));
-
-        this.ctx.fillStyle = 'grey';
-        this.ctx.fillRect(this.wall.position.x, 0, this.wall.width, this.wall.height);
-        this.ctx.fillStyle = 'white';
-        this.ctx.font = '24px Arial';
-        this.ctx.textAlign = 'right';
-        this.ctx.fillText(`Wall HP: ${Math.max(0, this.wall.hp)}`, this.canvas.width - 30, 30);
 
         if (this.isGameOver) {
             this.ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
@@ -335,6 +334,35 @@ export default class Game {
             this.ctx.fillText('GAME OVER', this.canvas.width / 2, this.canvas.height / 2);
         }
     }
+
+    drawSkillRange(position, skill) {
+        if (!skill) return;
+
+        this.ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
+
+        // スキルのタイプに応じて描画方法を分岐
+        if (skill.type === 'line' || (skill.condition && skill.condition === 'line')) {
+            // 長方形の描画（左方向へ伸びる）
+            const rectWidth = skill.range;
+            const rectHeight = 100;
+            const x = position.x - rectWidth;
+            const y = position.y - rectHeight / 2;
+            this.ctx.fillRect(x, y, rectWidth, rectHeight);
+        } else {
+            // それ以外は円形として描画
+            this.ctx.beginPath();
+            this.ctx.arc(position.x, position.y, skill.range, 0, Math.PI * 2);
+            this.ctx.fill();
+        }
+    }
+
+    drawRange(position, range, color) {
+        this.ctx.fillStyle = color;
+        this.ctx.beginPath();
+        this.ctx.arc(position.x, position.y, range, 0, Math.PI * 2);
+        this.ctx.fill();
+    }
+
 
     drawOffscreenArrow(enemy) {
         if (enemy.position.x < 0) {
